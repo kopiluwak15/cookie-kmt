@@ -1,5 +1,7 @@
 # cookie-kmt LINE CRM System
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fkopiluwak15%2Fcookie-kmt&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,OPENAI_API_KEY,NEXT_PUBLIC_LIFF_ID,LINE_CHANNEL_ID,LINE_CHANNEL_ACCESS_TOKEN,LINE_CHANNEL_SECRET&project-name=cookie-kmt&repository-name=cookie-kmt)
+
 縮毛矯正・髪質改善専門店 **cookie-kmt** のための LINE 連携 CRM システム。
 
 **最重要KPI：「悩み→施術→再来店」の再現性を可視化**
