@@ -95,9 +95,7 @@ CREATE TABLE visits (
   amount DECIMAL(10, 2) NOT NULL,
   discount_amount DECIMAL(10, 2) DEFAULT 0,
   total_amount DECIMAL(10, 2) GENERATED ALWAYS AS (amount - discount_amount) STORED,
-  is_concept BOOLEAN GENERATED ALWAYS AS (EXISTS(
-    SELECT 1 FROM menus WHERE menus.id = visits.menu_id AND menus.menu_type = 'concept'
-  )) STORED,
+  is_concept BOOLEAN NOT NULL DEFAULT FALSE,
   log_text TEXT,
   log_voice_url TEXT,
   log_status TEXT CHECK (log_status IN ('draft', 'submitted', 'completed')) DEFAULT 'draft',
@@ -279,6 +277,23 @@ CREATE INDEX idx_reminders_customer_id ON reminders(customer_id);
 CREATE INDEX idx_reminders_scheduled_at ON reminders(scheduled_at);
 
 CREATE INDEX idx_line_messages_customer_id ON line_messages(customer_id);
+
+-- ========================================
+-- トリガー: visits.is_concept を menus.menu_type から自動設定
+-- ========================================
+
+CREATE OR REPLACE FUNCTION set_visits_is_concept()
+RETURNS TRIGGER AS $$
+BEGIN
+  SELECT (menu_type = 'concept') INTO NEW.is_concept
+  FROM menus WHERE id = NEW.menu_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_visits_set_is_concept
+BEFORE INSERT OR UPDATE OF menu_id ON visits
+FOR EACH ROW EXECUTE FUNCTION set_visits_is_concept();
 
 -- ========================================
 -- RLS (Row Level Security) は別途設定予定
