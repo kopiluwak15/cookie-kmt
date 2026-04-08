@@ -16,6 +16,8 @@ const VISIT_ROUTES = [
 const HISTORY_OPTIONS = ["黒染め", "ブリーチ", "縮毛矯正", "その他"];
 
 const TODAYS_WISH_OPTIONS = [
+  "相談したい",
+  "おまかせ",
   "縮毛矯正",
   "髪質改善",
   "メンテナンス",
@@ -47,6 +49,8 @@ const ADDRESS_OPTIONS = [
 ];
 
 const HAIR_WORRIES = [
+  "相談したい",
+  "おまかせ",
   "スタイリングが決まらない",
   "トップにボリュームがほしい",
   "ボリュームを抑えたい",
@@ -159,6 +163,8 @@ export default function CustomerRegisterPage() {
     selectedMenus: [],
   });
   const [submitted, setSubmitted] = useState<"none" | "regular" | "concept">("none");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((p) => ({ ...p, [key]: value }));
@@ -202,9 +208,26 @@ export default function CustomerRegisterPage() {
     }
   })();
 
-  const handleSubmit = () => {
-    // TODO: API送信（カルテ保存）
-    setSubmitted(conceptCount > 0 ? "concept" : "regular");
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/karte", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? "送信に失敗しました");
+      }
+      setSubmitted(json.customer.isConcept ? "concept" : "regular");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "送信に失敗しました";
+      setError(msg);
+      setSubmitting(false);
+    }
   };
 
   // ===== 完了画面 =====
@@ -541,14 +564,19 @@ export default function CustomerRegisterPage() {
           ) : (
             <button
               type="button"
-              disabled={!canNext}
+              disabled={!canNext || submitting}
               onClick={handleSubmit}
               className="flex-[2] py-3.5 rounded-xl bg-green-600 text-white text-sm font-bold disabled:opacity-40"
             >
-              ✓ 送信する
+              {submitting ? "送信中..." : "✓ 送信する"}
             </button>
           )}
         </div>
+        {error && (
+          <p className="max-w-xl mx-auto text-center text-xs text-red-600 font-bold mt-2">
+            {error}
+          </p>
+        )}
         <div className="h-[env(safe-area-inset-bottom)]" />
       </div>
 

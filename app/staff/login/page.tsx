@@ -1,11 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function StaffLoginPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-canvas" />}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get("next") || "/staff";
+  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -18,18 +30,32 @@ export default function StaffLoginPage() {
     if (!canSubmit) return;
     setError(null);
     setSubmitting(true);
-    // TODO: POST /api/auth/staff/login
-    await new Promise((r) => setTimeout(r, 500));
 
-    // モック: 初期パスワード `123456` の場合は強制リセット画面へ
+    const { error: authErr } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (authErr) {
+      setError(
+        authErr.message === "Invalid login credentials"
+          ? "メールアドレスまたはパスワードが違います"
+          : authErr.message,
+      );
+      setSubmitting(false);
+      return;
+    }
+
+    // 初期パスワードのままならリセット画面へ
     if (password === "123456") {
       router.push(
         `/staff/login/reset?email=${encodeURIComponent(email)}&first=1`,
       );
       return;
     }
-    // 通常ログイン成功
-    router.push("/staff");
+
+    router.push(next);
+    router.refresh();
   };
 
   const loginWithLine = () => {

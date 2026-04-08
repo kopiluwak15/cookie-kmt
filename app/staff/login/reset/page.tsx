@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function StaffPasswordResetPage() {
   return (
@@ -14,6 +15,7 @@ export default function StaffPasswordResetPage() {
 function ResetForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const supabase = createClient();
   const email = params.get("email") ?? "";
   const isFirst = params.get("first") === "1";
 
@@ -37,11 +39,25 @@ function ResetForm() {
     if (!canSubmit) return;
     setError(null);
     setSubmitting(true);
-    // TODO: POST /api/auth/staff/password
-    await new Promise((r) => setTimeout(r, 500));
-    setSubmitting(false);
-    // 成功 → スタッフトップへ
+
+    const { error: updErr } = await supabase.auth.updateUser({ password: pw1 });
+    if (updErr) {
+      setError(updErr.message);
+      setSubmitting(false);
+      return;
+    }
+
+    // password_initialized フラグを立てる（自分のレコードのみ更新可能）
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("staff")
+        .update({ password_initialized: true })
+        .eq("auth_user_id", user.id);
+    }
+
     router.push("/staff");
+    router.refresh();
   };
 
   return (

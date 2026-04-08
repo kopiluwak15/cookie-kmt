@@ -36,7 +36,7 @@ const MENU_GROUPS: {
     items: [
       { icon: "❓", label: "ヘルプ",             href: "/staff/me/help" },
       { icon: "📜", label: "利用規約",           href: "/staff/me/terms" },
-      { icon: "🚪", label: "ログアウト",         href: "/logout", danger: true },
+      { icon: "🚪", label: "ログアウト",         href: "#signout", danger: true },
     ],
   },
 ];
@@ -148,23 +148,48 @@ export default function MyPage() {
               {g.title.toUpperCase()}
             </h2>
             <div className="bg-white rounded-2xl border border-brand-light/60 divide-y divide-brand-light/40 overflow-hidden">
-              {g.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-3 px-4 py-3.5 active:bg-canvas transition"
-                >
-                  <span className="text-lg w-6 text-center">{item.icon}</span>
-                  <span
-                    className={`flex-1 text-sm font-semibold ${
-                      item.danger ? "text-red-600" : "text-ink"
-                    }`}
+              {g.items.map((item) =>
+                item.href === "#signout" ? (
+                  <form
+                    key={item.href}
+                    action="/api/auth/signout"
+                    method="post"
                   >
-                    {item.label}
-                  </span>
-                  <span className="text-ink-muted text-xs">→</span>
-                </Link>
-              ))}
+                    <button
+                      type="submit"
+                      className="w-full flex items-center gap-3 px-4 py-3.5 active:bg-canvas transition text-left"
+                    >
+                      <span className="text-lg w-6 text-center">
+                        {item.icon}
+                      </span>
+                      <span
+                        className={`flex-1 text-sm font-semibold ${
+                          item.danger ? "text-red-600" : "text-ink"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      <span className="text-ink-muted text-xs">→</span>
+                    </button>
+                  </form>
+                ) : (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-3 px-4 py-3.5 active:bg-canvas transition"
+                  >
+                    <span className="text-lg w-6 text-center">{item.icon}</span>
+                    <span
+                      className={`flex-1 text-sm font-semibold ${
+                        item.danger ? "text-red-600" : "text-ink"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                    <span className="text-ink-muted text-xs">→</span>
+                  </Link>
+                ),
+              )}
             </div>
           </section>
         ))}

@@ -1,40 +1,58 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { findStaff, STAFF_PERFORMANCE } from "@/lib/admin-mock";
+import { createClient } from "@/lib/supabase/server";
+import { STAGES, type StageCode } from "@/lib/admin-mock";
 
-export default function StaffDetailPage({
+export const dynamic = "force-dynamic";
+
+const STAGE_NAME: Record<string, string> = Object.fromEntries(
+  STAGES.map((s) => [s.code, s.name]),
+);
+
+type StaffRow = {
+  id: string;
+  name: string;
+  name_kana: string | null;
+  email: string;
+  role: "admin" | "staff";
+  stage: StageCode | null;
+  joined_at: string | null;
+  enabled: boolean;
+  password_initialized: boolean;
+  line_user_id: string | null;
+  created_at: string;
+};
+
+export default async function StaffDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const staff = findStaff(params.id);
+  const supabase = await createClient();
+  const { data: staff } = await supabase
+    .from("staff")
+    .select(
+      "id,name,name_kana,email,role,stage,joined_at,enabled,password_initialized,line_user_id,created_at",
+    )
+    .eq("id", params.id)
+    .maybeSingle<StaffRow>();
+
   if (!staff) notFound();
 
-  // 簡易ランキング
-  const ranking = [...STAFF_PERFORMANCE].sort((a, b) => b.sales - a.sales);
-  const rank = ranking.findIndex((s) => s.staffId === staff.staffId) + 1;
-
-  // 月次トレンド計算
-  const latest = staff.monthly[staff.monthly.length - 1];
-  const prev = staff.monthly[staff.monthly.length - 2];
-  const salesDelta = prev
-    ? Math.round(((latest.sales - prev.sales) / prev.sales) * 100)
-    : 0;
-
-  // チャート用最大値
-  const maxSales = Math.max(...staff.monthly.map((m) => m.sales));
-  const maxConcerns = Math.max(...staff.concernsResolved.map((c) => c.count));
+  const yearsServed = staff.joined_at
+    ? Math.floor(
+        (new Date("2026-04-08").getTime() -
+          new Date(staff.joined_at).getTime()) /
+          (1000 * 60 * 60 * 24 * 365),
+      )
+    : null;
 
   return (
     <main className="min-h-screen bg-canvas pb-16">
-      {/* ヘッダー */}
       <header className="bg-white border-b border-brand-light/40 sticky top-0 z-10">
         <div className="px-6 py-4 max-w-7xl mx-auto flex items-center gap-4 pl-16 lg:pl-6">
-          <Link
-            href="/admin"
-            className="text-brand-dark text-sm font-bold"
-          >
-            ← ダッシュボード
+          <Link href="/admin/staff" className="text-brand-dark text-sm font-bold">
+            ← 一覧
           </Link>
           <div className="h-6 w-px bg-brand-light/60" />
           <p className="text-[10px] tracking-[0.3em] text-brand-dark">
@@ -43,7 +61,7 @@ export default function StaffDetailPage({
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-8">
+      <div className="max-w-4xl mx-auto px-6 py-6 space-y-6">
         {/* プロフィール */}
         <section className="bg-white rounded-2xl border border-brand-light/60 p-6">
           <div className="flex items-start gap-5">
@@ -51,351 +69,122 @@ export default function StaffDetailPage({
               {staff.name.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-ink-muted mb-0.5">
-                {staff.role}
-              </p>
-              <h1 className="text-2xl font-bold text-ink mb-1">
-                {staff.name}
-              </h1>
-              <p className="text-[11px] text-ink-muted">
-                入社 {staff.joinedAt} / 在籍{" "}
-                {Math.floor(
-                  (Date.now() - new Date(staff.joinedAt).getTime()) /
-                    (1000 * 60 * 60 * 24 * 365),
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-2xl font-bold text-ink">{staff.name}</h1>
+                {!staff.enabled && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 font-bold">
+                    無効
+                  </span>
                 )}
-                年
-              </p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-[10px] text-ink-muted mb-1">店内ランク</p>
-              <p className="text-3xl font-bold text-brand-dark">
-                #{rank}
-                <span className="text-sm text-ink-muted">
-                  /{STAFF_PERFORMANCE.length}
-                </span>
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* 個人KPI */}
-        <section>
-          <h2 className="text-base font-bold text-ink mb-3">
-            今月のパフォーマンス
-          </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard
-              label="売上"
-              value={`¥${(latest.sales / 10000).toFixed(0)}万`}
-              delta={salesDelta}
-            />
-            <KpiCard
-              label="インセンティブ"
-              value={`¥${(latest.incentive / 1000).toFixed(0)}k`}
-              delta={salesDelta}
-              accent
-            />
-            <KpiCard
-              label="コンセプト率"
-              value={`${latest.conceptRatio}%`}
-              target={60}
-              targetValue={latest.conceptRatio}
-            />
-            <KpiCard
-              label="再来店率"
-              value={`${latest.returnRate}%`}
-              target={75}
-              targetValue={latest.returnRate}
-            />
-          </div>
-        </section>
-
-        {/* 月次推移 + 強み課題 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 売上推移グラフ */}
-          <section className="lg:col-span-2 bg-white rounded-2xl border border-brand-light/60 p-5">
-            <div className="flex items-baseline justify-between mb-4">
-              <h2 className="text-sm font-bold text-ink">売上推移（6ヶ月）</h2>
-              <p className="text-[10px] text-ink-muted">¥1,000単位</p>
-            </div>
-            <div className="flex items-end justify-between gap-2 h-40">
-              {staff.monthly.map((m, i) => {
-                const h = (m.sales / maxSales) * 100;
-                const isLatest = i === staff.monthly.length - 1;
-                return (
-                  <div
-                    key={m.month}
-                    className="flex-1 flex flex-col items-center gap-1"
-                  >
-                    <div className="text-[9px] text-ink-muted">
-                      {Math.round(m.sales / 1000)}
-                    </div>
-                    <div
-                      className={`w-full rounded-t ${
-                        isLatest ? "bg-brand" : "bg-brand-light"
-                      }`}
-                      style={{ height: `${h}%` }}
-                    />
-                    <div className="text-[9px] text-ink-muted">
-                      {m.month.slice(-2)}月
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* 強み・課題 */}
-          <section className="bg-white rounded-2xl border border-brand-light/60 p-5">
-            <h2 className="text-sm font-bold text-ink mb-3">強み・課題</h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-[10px] tracking-wider font-bold text-green-700 mb-1">
-                  STRENGTH
+              </div>
+              {staff.name_kana && (
+                <p className="text-[11px] text-ink-muted mb-0.5">
+                  {staff.name_kana}
                 </p>
-                <ul className="space-y-1.5">
-                  {staff.strengths.map((s, i) => (
-                    <li
-                      key={i}
-                      className="text-xs text-ink leading-relaxed flex gap-1.5"
-                    >
-                      <span className="text-green-600">●</span>
-                      <span className="flex-1">{s}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {staff.challenges.length > 0 && (
-                <div>
-                  <p className="text-[10px] tracking-wider font-bold text-amber-700 mb-1">
-                    CHALLENGE
-                  </p>
-                  <ul className="space-y-1.5">
-                    {staff.challenges.map((c, i) => (
-                      <li
-                        key={i}
-                        className="text-xs text-ink leading-relaxed flex gap-1.5"
-                      >
-                        <span className="text-amber-600">●</span>
-                        <span className="flex-1">{c}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              )}
+              <p className="text-[11px] text-ink-muted">
+                {staff.stage
+                  ? `${staff.stage}：${STAGE_NAME[staff.stage]}`
+                  : "ステージ未設定"}
+                {" / "}
+                {staff.role === "admin" ? "管理者" : "スタッフ"}
+              </p>
+              {staff.joined_at && (
+                <p className="text-[11px] text-ink-muted mt-1">
+                  入社 {staff.joined_at}
+                  {yearsServed !== null && ` / 在籍 ${yearsServed}年`}
+                </p>
               )}
             </div>
-          </section>
-        </div>
-
-        {/* 解決した悩み */}
-        <section>
-          <h2 className="text-base font-bold text-ink mb-3">
-            解決した悩み <span className="text-[11px] text-ink-muted font-normal">使命感の積み上げ</span>
-          </h2>
-          <div className="bg-white rounded-2xl border border-brand-light/60 p-5">
-            {staff.concernsResolved.length === 0 ? (
-              <p className="text-xs text-ink-muted text-center py-6">
-                まだ記録がありません
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {staff.concernsResolved.map((c) => {
-                  const pct = (c.count / maxConcerns) * 100;
-                  return (
-                    <div key={c.category}>
-                      <div className="flex items-baseline justify-between mb-1">
-                        <p className="text-xs font-bold text-ink">
-                          {c.category}
-                        </p>
-                        <p className="text-[11px] text-ink-muted">
-                          <span className="text-sm font-bold text-brand-dark">
-                            {c.count}
-                          </span>
-                          件 / 成功率 {c.successRate}%
-                        </p>
-                      </div>
-                      <div className="h-2 bg-canvas rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-brand rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </section>
 
-        {/* 担当顧客 + 最近の判断ログ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <section>
-            <div className="flex items-baseline justify-between mb-3">
-              <h2 className="text-base font-bold text-ink">担当顧客</h2>
-              <p className="text-[11px] text-ink-muted">
-                {staff.customers.length}名
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl border border-brand-light/60 divide-y divide-brand-light/40">
-              {staff.customers.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/admin/customers/${c.id}`}
-                  className="flex items-center gap-3 px-4 py-3 active:bg-canvas transition"
-                >
-                  <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center text-brand-dark text-sm font-bold shrink-0">
-                    {c.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-bold text-ink truncate">
-                        {c.name}
-                      </p>
-                      {c.isConcept && (
-                        <span className="text-[8px] px-1.5 py-0.5 rounded bg-brand/10 text-brand-dark border border-brand/30 font-bold shrink-0">
-                          コンセプト
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-ink-muted">
-                      {c.visitCount}回 / 直近 {c.lastVisit}
-                    </p>
-                  </div>
-                  <span className="text-brand-dark text-xs">→</span>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-baseline justify-between mb-3">
-              <h2 className="text-base font-bold text-ink">最近の判断ログ</h2>
-              <p className="text-[11px] text-ink-muted">
-                {staff.recentJudgments.length}件
-              </p>
-            </div>
-            <div className="space-y-2">
-              {staff.recentJudgments.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-brand-light/60 px-4 py-6 text-center">
-                  <p className="text-xs text-ink-muted">
-                    判断ログの記録がありません
-                  </p>
-                  <p className="text-[10px] text-amber-700 mt-1">
-                    記入を推奨してください
-                  </p>
-                </div>
-              ) : (
-                staff.recentJudgments.map((j) => (
-                  <div
-                    key={j.id}
-                    className="bg-white rounded-2xl border border-brand-light/60 p-4"
-                  >
-                    <div className="flex items-baseline justify-between mb-1">
-                      <p className="text-xs font-bold text-ink">
-                        {j.customer} <span className="text-ink-muted">/ {j.menu}</span>
-                      </p>
-                      <p className="text-[10px] text-ink-muted">
-                        {j.at.slice(5, 10)}
-                      </p>
-                    </div>
-                    <p className="text-xs text-ink leading-relaxed">
-                      {j.note}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* アクション */}
-        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-          {[
-            { icon: "💰", label: "報酬詳細", href: `/admin/staff/${staff.staffId}/incentive` },
-            { icon: "📋", label: "判断ログ全件", href: `/admin/staff/${staff.staffId}/judgments` },
-            { icon: "📅", label: "シフト", href: `/admin/staff/${staff.staffId}/schedule` },
-            { icon: "⚙️", label: "設定編集", href: `/admin/staff/${staff.staffId}/edit` },
-          ].map((q) => (
-            <Link
-              key={q.label}
-              href={q.href}
-              className="bg-white rounded-2xl border border-brand-light/60 px-4 py-4 text-center active:bg-canvas transition"
-            >
-              <p className="text-2xl mb-1">{q.icon}</p>
-              <p className="text-xs font-bold text-ink">{q.label}</p>
-            </Link>
-          ))}
+        {/* アカウント情報 */}
+        <section>
+          <h2 className="text-sm font-bold text-ink mb-3">アカウント情報</h2>
+          <div className="bg-white rounded-2xl border border-brand-light/60 divide-y divide-brand-light/40">
+            <Row label="メールアドレス" value={staff.email} />
+            <Row
+              label="初回パスワード変更"
+              value={
+                staff.password_initialized ? (
+                  <span className="text-green-700">✓ 変更済み</span>
+                ) : (
+                  <span className="text-amber-700">未変更（初期パスワード）</span>
+                )
+              }
+            />
+            <Row
+              label="LINE連携"
+              value={
+                staff.line_user_id ? (
+                  <span className="text-green-700">✓ 連携済み</span>
+                ) : (
+                  <span className="text-ink-muted">未連携</span>
+                )
+              }
+            />
+            <Row
+              label="登録日"
+              value={staff.created_at.slice(0, 10)}
+            />
+          </div>
         </section>
+
+        {/* 編集アクション（今後実装） */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <ActionCard icon="✏️" label="編集" disabled />
+          <ActionCard icon="🔐" label="パスワード再発行" disabled />
+          <ActionCard icon="💰" label="報酬詳細" disabled />
+          <ActionCard
+            icon={staff.enabled ? "🚫" : "✅"}
+            label={staff.enabled ? "無効化" : "有効化"}
+            disabled
+          />
+        </section>
+
+        <p className="text-[10px] text-ink-muted text-center pt-4">
+          売上・判断ログ・再来店率は visits / judgment_logs 接続後に表示されます
+        </p>
       </div>
     </main>
   );
 }
 
-// ===== 部品 =====
-function KpiCard({
+function Row({
   label,
   value,
-  delta,
-  target,
-  targetValue,
-  accent = false,
 }: {
   label: string;
-  value: string;
-  delta?: number;
-  target?: number;
-  targetValue?: number;
-  accent?: boolean;
+  value: React.ReactNode;
 }) {
-  const achieved = target !== undefined && targetValue !== undefined && targetValue >= target;
+  return (
+    <div className="flex items-center gap-4 px-4 py-3">
+      <p className="text-xs text-ink-muted w-32 shrink-0">{label}</p>
+      <p className="text-sm text-ink flex-1 min-w-0 break-all">{value}</p>
+    </div>
+  );
+}
+
+function ActionCard({
+  icon,
+  label,
+  disabled,
+}: {
+  icon: string;
+  label: string;
+  disabled?: boolean;
+}) {
   return (
     <div
-      className={`rounded-2xl p-4 border ${
-        accent
-          ? "bg-brand text-white border-brand"
-          : "bg-white border-brand-light/60"
+      className={`bg-white rounded-2xl border border-brand-light/60 px-4 py-4 text-center ${
+        disabled ? "opacity-40" : "active:bg-canvas transition"
       }`}
     >
-      <p
-        className={`text-[10px] mb-1 ${
-          accent ? "text-white/80" : "text-ink-muted"
-        }`}
-      >
-        {label}
-      </p>
-      <p className="flex items-baseline gap-1">
-        <span
-          className={`text-2xl font-bold ${accent ? "text-white" : "text-ink"}`}
-        >
-          {value}
-        </span>
-        {delta !== undefined && (
-          <span
-            className={`ml-auto text-[10px] font-bold ${
-              accent
-                ? "text-white/90"
-                : delta >= 0
-                ? "text-green-600"
-                : "text-red-500"
-            }`}
-          >
-            {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
-          </span>
-        )}
-      </p>
-      {target !== undefined && (
-        <p
-          className={`text-[10px] mt-1 ${
-            achieved
-              ? "text-green-600 font-bold"
-              : accent
-              ? "text-white/70"
-              : "text-ink-muted"
-          }`}
-        >
-          目標 {target}% {achieved && "✓"}
-        </p>
+      <p className="text-2xl mb-1">{icon}</p>
+      <p className="text-xs font-bold text-ink">{label}</p>
+      {disabled && (
+        <p className="text-[9px] text-ink-muted mt-0.5">準備中</p>
       )}
     </div>
   );
