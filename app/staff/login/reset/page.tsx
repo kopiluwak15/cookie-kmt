@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function StaffPasswordResetPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-canvas" />}>
+      <ResetForm />
+    </Suspense>
+  );
+}
+
+function ResetForm() {
   const router = useRouter();
   const params = useSearchParams();
   const email = params.get("email") ?? "";
