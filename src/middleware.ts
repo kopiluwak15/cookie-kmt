@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const lowerPath = pathname.toLowerCase()
 
   // 認証不要パスは早期リターン（Supabaseクライアント生成をスキップ）
   if (
@@ -21,10 +22,14 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/menus/active') ||
     pathname.startsWith('/menu/') ||
     pathname.startsWith('/recruit') ||
-    pathname.endsWith('.html') ||
-    pathname.endsWith('.png') ||
-    pathname.endsWith('.jpg') ||
-    pathname.endsWith('.svg')
+    lowerPath.endsWith('.html') ||
+    lowerPath.endsWith('.png') ||
+    lowerPath.endsWith('.jpg') ||
+    lowerPath.endsWith('.jpeg') ||
+    lowerPath.endsWith('.webp') ||
+    lowerPath.endsWith('.gif') ||
+    lowerPath.endsWith('.svg') ||
+    lowerPath.endsWith('.ico')
   ) {
     return NextResponse.next()
   }
