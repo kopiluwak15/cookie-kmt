@@ -681,7 +681,7 @@ function LiffRegisterInner() {
         {/* Step 12: メニュー */}
         {step === 12 && (
           <StepFrame nextBtn={nextBtn}
-            title="ご希望のメニュー"
+            title="今日のご希望メニュー"
             sub="気になるカテゴリーをお選びください（複数可）"
           >
             <CategoryPicker
