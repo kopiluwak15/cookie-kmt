@@ -62,11 +62,60 @@ export async function POST(req: Request) {
   if (attendance?.checkin_time && !attendance?.checkout_time) nextAction = 'check_out'
   else if (attendance?.checkin_time && attendance?.checkout_time) nextAction = 'done'
 
+  // 未読のお知らせ（現在のアクションの delivery_timing でフィルタ）
+  type AnnouncementRow = {
+    id: string
+    title: string
+    content: string
+    importance: string
+    delivery_timing: string
+    is_active: boolean
+  }
+  let announcements: AnnouncementRow[] = []
+  if (nextAction !== 'done') {
+    const { data: recipients } = await supabase
+      .from('announcement_recipients')
+      .select('announcement_id')
+      .eq('staff_id', staff.id)
+
+    const announcementIds = (recipients || []).map((r) => r.announcement_id)
+    if (announcementIds.length > 0) {
+      const { data: annRows } = await supabase
+        .from('announcements')
+        .select('id, title, content, importance, delivery_timing, is_active')
+        .in('id', announcementIds)
+        .eq('delivery_timing', nextAction)
+        .eq('is_active', true)
+
+      const { data: reads } = await supabase
+        .from('announcement_reads')
+        .select('announcement_id')
+        .eq('staff_id', staff.id)
+
+      const readIds = new Set((reads || []).map((r) => r.announcement_id))
+      const importanceOrder: Record<string, number> = {
+        重要: 0,
+        確認: 1,
+        指示: 2,
+        お知らせ: 3,
+        その他: 4,
+      }
+      announcements = ((annRows || []) as AnnouncementRow[])
+        .filter((a) => !readIds.has(a.id))
+        .sort(
+          (a, b) =>
+            (importanceOrder[a.importance] ?? 99) -
+            (importanceOrder[b.importance] ?? 99)
+        )
+    }
+  }
+
   return NextResponse.json({
     staff: { id: staff.id, name: staff.name },
     store,
     attendance: attendance || null,
     nextAction,
     today,
+    announcements,
   })
 }

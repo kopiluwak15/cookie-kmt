@@ -2,9 +2,17 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Loader2, CheckCircle2, Clock, MapPin, AlertCircle } from 'lucide-react'
+import { Loader2, CheckCircle2, Clock, MapPin, AlertCircle, Bell } from 'lucide-react'
 
 type Mode = 'loading' | 'ready' | 'done' | 'success' | 'error'
+
+type Announcement = {
+  id: string
+  title: string
+  content: string
+  importance: '重要' | '確認' | '指示' | 'お知らせ' | 'その他'
+  delivery_timing: 'check_in' | 'check_out'
+}
 
 type CheckResp = {
   staff: { id: string; name: string }
@@ -17,6 +25,15 @@ type CheckResp = {
   attendance: { checkin_time: string | null; checkout_time: string | null } | null
   nextAction: 'check_in' | 'check_out' | 'done'
   today: string
+  announcements?: Announcement[]
+}
+
+const IMPORTANCE_MARK: Record<string, string> = {
+  重要: '🔴',
+  確認: '🟠',
+  指示: '🟡',
+  お知らせ: '🟢',
+  その他: '⚪',
 }
 
 function haversineMeters(
@@ -75,6 +92,9 @@ function LiffTimecardInner() {
   const [punching, setPunching] = useState(false)
   const [successAction, setSuccessAction] = useState<'check_in' | 'check_out' | null>(null)
   const [successTime, setSuccessTime] = useState('')
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
+  const [confirming, setConfirming] = useState<string | null>(null)
 
   useEffect(() => {
     const init = async () => {
@@ -106,6 +126,7 @@ function LiffTimecardInner() {
         }
 
         setInfo(data)
+        setAnnouncements(data.announcements || [])
 
         if (data.nextAction === 'done') {
           setMode('done')
@@ -156,6 +177,25 @@ function LiffTimecardInner() {
     }
     init()
   }, [])
+
+  async function handleConfirmAnnouncement(announcementId: string) {
+    if (confirming) return
+    setConfirming(announcementId)
+    try {
+      const res = await fetch('/api/timecard/confirm-announcement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineUserId, announcementId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '確認に失敗しました')
+      setConfirmedIds((prev) => new Set([...prev, announcementId]))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '確認に失敗しました')
+    } finally {
+      setConfirming(null)
+    }
+  }
 
   async function handlePunch() {
     if (!info || !lineUserId) return
@@ -274,7 +314,10 @@ function LiffTimecardInner() {
   const action = info.nextAction
   const actionLabel = action === 'check_in' ? '出勤' : '退勤'
   const gpsRequired = !!info.store?.gps_enabled
-  const canPunch = !gpsRequired || gpsVerified === true
+  const gpsOk = !gpsRequired || gpsVerified === true
+  const allAnnouncementsConfirmed =
+    announcements.length === 0 || confirmedIds.size === announcements.length
+  const canPunch = gpsOk && allAnnouncementsConfirmed
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white px-6 py-10 flex items-center justify-center">
@@ -348,6 +391,64 @@ function LiffTimecardInner() {
               </div>
             </div>
           </div>
+        )}
+
+        {announcements.length > 0 && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Bell className="h-4 w-4 text-amber-600" />
+              <h2 className="text-sm font-bold text-amber-900">
+                {action === 'check_in' ? '出勤時' : '退勤時'}のお知らせ (
+                {confirmedIds.size}/{announcements.length})
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {announcements.map((a) => {
+                const isConfirmed = confirmedIds.has(a.id)
+                return (
+                  <div
+                    key={a.id}
+                    className={`rounded-xl border-2 p-3 transition ${
+                      isConfirmed
+                        ? 'bg-green-50 border-green-300'
+                        : 'bg-white border-amber-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="text-lg leading-none">
+                        {IMPORTANCE_MARK[a.importance] || '⚪'}
+                      </span>
+                      <h3 className="font-bold text-sm text-gray-900 flex-1 break-words leading-snug">
+                        {a.title}
+                      </h3>
+                      {isConfirmed && (
+                        <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-700 whitespace-pre-wrap break-words leading-relaxed mb-2">
+                      {a.content}
+                    </p>
+                    {!isConfirmed && (
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmAnnouncement(a.id)}
+                        disabled={confirming === a.id}
+                        className="w-full py-2.5 rounded-lg bg-gray-900 text-white text-xs font-bold disabled:opacity-40"
+                      >
+                        {confirming === a.id ? '確認中...' : '確認しました'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {announcements.length > 0 && !allAnnouncementsConfirmed && (
+          <p className="text-center text-xs text-amber-800 bg-amber-100 py-2 rounded-lg mb-3">
+            すべてのお知らせを確認してください
+          </p>
         )}
 
         <button
