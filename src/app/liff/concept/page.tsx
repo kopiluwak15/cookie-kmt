@@ -511,7 +511,7 @@ function ConceptDoneScreen() {
       style={{
         minHeight: '100dvh',
         backgroundImage:
-          "linear-gradient(180deg, rgba(15,15,15,0.65) 0%, rgba(15,15,15,0.85) 100%), url('/richmenu.png')",
+          "linear-gradient(180deg, rgba(15,15,15,0.55) 0%, rgba(15,15,15,0.78) 100%), url('/salon-interior.JPG')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
