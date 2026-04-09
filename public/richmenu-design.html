@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 2500px;
+    height: 1686px;
+    font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    background: #1a1a1a;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    width: 100%;
+    height: 100%;
+    gap: 6px;
+    padding: 6px;
+    background: #2a2a2a;
+  }
+  .cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #1f1f1f 0%, #171717 100%);
+    border-radius: 12px;
+    padding: 30px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, #d97706, #f59e0b);
+  }
+  .icon {
+    font-size: 150px;
+    margin-bottom: 24px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+  }
+  .title {
+    color: #ffffff;
+    font-size: 80px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    line-height: 1.25;
+    margin-bottom: 16px;
+  }
+  .subtitle {
+    color: #d97706;
+    font-size: 48px;
+    font-weight: 600;
+    letter-spacing: 2px;
+  }
+  .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #d97706, #b45309);
+    color: white;
+    font-size: 46px;
+    font-weight: 700;
+    padding: 12px 40px;
+    border-radius: 40px;
+    margin-top: 16px;
+    letter-spacing: 2px;
+  }
+  /* Individual cell styles */
+  .cell-weekday .icon { color: #60a5fa; }
+  .cell-weekend .icon { color: #f472b6; }
+  .cell-color .icon { color: #a78bfa; }
+  .cell-hp .icon { color: #34d399; }
+  .cell-phone .icon { color: #fbbf24; }
+  .cell-referral .icon { color: #fb923c; }
+
+  .cell-weekday::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+  .cell-weekend::before { background: linear-gradient(90deg, #ec4899, #f472b6); }
+  .cell-color::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+  .cell-hp::before { background: linear-gradient(90deg, #10b981, #34d399); }
+  .cell-phone::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .cell-referral::before { background: linear-gradient(90deg, #f97316, #fb923c); }
+</style>
+</head>
+<body>
+<div class="grid">
+  <!-- Top Left -->
+  <div class="cell cell-weekday">
+    <div class="icon">✂️</div>
+    <div class="title">7つの<br>スタイルカット</div>
+    <div class="badge">平日限定</div>
+  </div>
+
+  <!-- Top Middle -->
+  <div class="cell cell-weekend">
+    <div class="icon">💈</div>
+    <div class="title">7つの<br>スタイルカット</div>
+    <div class="badge">土日祝</div>
+  </div>
+
+  <!-- Top Right -->
+  <div class="cell cell-color">
+    <div class="icon">🎨</div>
+    <div class="title">カット＆<br>ブラックカラー</div>
+    <div class="subtitle">白髪ぼかし</div>
+  </div>
+
+  <!-- Bottom Left -->
+  <div class="cell cell-hp">
+    <div class="icon">🌐</div>
+    <div class="title">ホームページ</div>
+    <div class="subtitle">COOKIE for MEN</div>
+  </div>
+
+  <!-- Bottom Middle -->
+  <div class="cell cell-phone">
+    <div class="icon">📞</div>
+    <div class="title">今空いてるか<br>電話する</div>
+    <div class="subtitle">タップで発信</div>
+  </div>
+
+  <!-- Bottom Right -->
+  <div class="cell cell-referral">
+    <div class="icon">🤝</div>
+    <div class="title">美容師さん<br>ご紹介</div>
+    <div class="subtitle">一緒に働きませんか？</div>
+  </div>
+</div>
+</body>
+</html>

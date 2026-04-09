@@ -1,0 +1,6 @@
+-- attendance テーブルのカラム型を修正
+-- TIME WITH TIME ZONE から TIMESTAMP WITH TIME ZONE に変更
+
+ALTER TABLE attendance
+  ALTER COLUMN checkin_time TYPE TIMESTAMP WITH TIME ZONE,
+  ALTER COLUMN checkout_time TYPE TIMESTAMP WITH TIME ZONE;

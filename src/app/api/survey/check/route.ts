@@ -1,0 +1,94 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+export const dynamic = 'force-dynamic'
+
+export async function POST(request: NextRequest) {
+  try {
+    const { line_user_id } = await request.json()
+
+    if (!line_user_id) {
+      return NextResponse.json(
+        { error: 'line_user_id is required' },
+        { status: 400 }
+      )
+    }
+
+    const supabase = createAdminClient()
+
+    const { data: customer } = await supabase
+      .from('customer')
+      .select('id, name, visit_motivation, total_visits, last_roulette_at, line_blocked, first_visit_date')
+      .eq('line_user_id', line_user_id)
+      .single()
+
+    // ルーレット当選確率を取得
+    const { data: winRateSetting } = await supabase
+      .from('global_settings')
+      .select('value')
+      .eq('key', 'roulette_win_rate')
+      .single()
+
+    const winRate = winRateSetting ? parseFloat(winRateSetting.value) : 1
+
+    if (!customer) {
+      return NextResponse.json({ exists: false, hasSurvey: false, winRate })
+    }
+
+    // 日本時間の今日の日付
+    const now = new Date()
+    const jstDate = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+    const today = jstDate.toISOString().split('T')[0]
+
+    // チェックイン: visit dateを今日に更新 + ブロック解除
+    const updateData: Record<string, unknown> = {
+      last_visit_date: today,
+      updated_at: new Date().toISOString(),
+    }
+    // 初回来店日が未設定なら設定
+    if (!customer.first_visit_date) {
+      updateData.first_visit_date = today
+    }
+    if (customer.line_blocked) {
+      updateData.line_blocked = false
+      console.log('[Check-in] ブロック解除:', customer.name, line_user_id)
+    }
+    await supabase
+      .from('customer')
+      .update(updateData)
+      .eq('id', customer.id)
+
+    // アンケート済みかどうか: visit_motivationが設定されている
+    const hasSurvey = !!customer.visit_motivation
+
+    // 1日1回制限チェック
+    let alreadyPlayedToday = false
+    if (customer.last_roulette_at) {
+      const lastPlayed = new Date(customer.last_roulette_at)
+      const now = new Date()
+      // 日本時間（UTC+9）で同日かチェック
+      const jstOffset = 9 * 60 * 60 * 1000
+      const lastPlayedJST = new Date(lastPlayed.getTime() + jstOffset)
+      const nowJST = new Date(now.getTime() + jstOffset)
+      alreadyPlayedToday =
+        lastPlayedJST.getFullYear() === nowJST.getFullYear() &&
+        lastPlayedJST.getMonth() === nowJST.getMonth() &&
+        lastPlayedJST.getDate() === nowJST.getDate()
+    }
+
+    return NextResponse.json({
+      exists: true,
+      hasSurvey,
+      name: customer.name,
+      totalVisits: customer.total_visits,
+      winRate,
+      alreadyPlayedToday,
+    })
+  } catch (error) {
+    console.error('顧客チェックAPIエラー:', error)
+    return NextResponse.json(
+      { error: 'サーバーエラー' },
+      { status: 500 }
+    )
+  }
+}

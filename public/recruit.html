@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>美容師さん募集 | COOKIE for MEN</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #0f0f0f 0%, #1a1a1a 100%);
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 40px 20px 24px;
+    text-align: center;
+  }
+  header .tag {
+    color: #fb923c;
+    font-size: 10px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 3px;
+  }
+  header .line {
+    width: 48px;
+    height: 2px;
+    background: #f97316;
+    margin: 12px auto 8px;
+  }
+  header .sub {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fb923c;
+  }
+  .content {
+    padding: 0 16px 40px;
+    max-width: 420px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .hero {
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(124,45,18,0.4), rgba(120,53,15,0.2));
+    border: 1px solid rgba(249,115,22,0.3);
+    padding: 28px;
+    text-align: center;
+  }
+  .hero .icon { font-size: 48px; margin-bottom: 16px; }
+  .hero h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .hero p { font-size: 13px; color: #d1d5db; line-height: 1.8; }
+  .section {
+    border-radius: 16px;
+    background: #1f1f1f;
+    border: 1px solid #333;
+    padding: 20px;
+  }
+  .section h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fb923c;
+    margin-bottom: 16px;
+  }
+  .rank {
+    background: #171717;
+    border-radius: 12px;
+    border: 1px solid #333;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .rank:last-child { margin-bottom: 0; }
+  .rank .top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .rank .badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .badge-orange { background: #ea580c; }
+  .badge-blue { background: #2563eb; }
+  .badge-green { background: #16a34a; }
+  .rank .name { font-size: 13px; font-weight: 600; }
+  .rank .desc { font-size: 11px; color: #9ca3af; }
+  .info-table {
+    width: 100%;
+    font-size: 13px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #333;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: #9ca3af; }
+  .info-value { text-align: right; }
+  .info-value a { color: #fb923c; text-decoration: none; }
+  a.btn {
+    display: block;
+    text-decoration: none;
+    color: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.15s;
+  }
+  a.btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: linear-gradient(135deg, #ea580c, #f59e0b);
+    box-shadow: 0 8px 24px rgba(234,88,12,0.3);
+  }
+  .btn-primary h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .btn-primary p { font-size: 11px; opacity: 0.8; }
+  .btn-secondary {
+    background: #1f1f1f;
+    border: 1px solid #555;
+  }
+  .btn-secondary p { font-size: 13px; font-weight: 600; }
+  .btn-secondary .small { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+  footer {
+    text-align: center;
+    padding-bottom: 32px;
+    font-size: 10px;
+    color: #4b5563;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="tag">We Are Hiring</div>
+    <h1>COOKIE for MEN</h1>
+    <div class="line"></div>
+    <div class="sub">一緒に働きませんか？</div>
+  </header>
+
+  <div class="content">
+    <div class="hero">
+      <div class="icon">🤝</div>
+      <h2>美容師さん募集中</h2>
+      <p>メンズ専門サロン COOKIE for MEN では<br>一緒に働く仲間を募集しています</p>
+    </div>
+
+    <div class="section">
+      <h3>📋 募集雇用形態</h3>
+      <div class="rank">
+        <div class="top">
+          <span class="badge badge-orange">正社員</span>
+          <span class="name">Sランク（S1〜S6）</span>
+        </div>
+        <div class="desc">月給制・社会保険完備・昇給あり</div>
+      </div>
+      <div class="rank">
+        <div class="top">
+          <span class="badge badge-blue">業務委託</span>
+          <span class="name">Aランク（シフト制）</span>
+        </div>
+        <div class="desc">シフト制・歩合あり</div>
+      </div>
+      <div class="rank">
+        <div class="top">
+          <span class="badge badge-green">業務委託</span>
+          <span class="name">Bランク（自由出勤）</span>
+        </div>
+        <div class="desc">自由出勤・完全歩合制</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>💈 サロン情報</h3>
+      <div class="info-table">
+        <div class="info-row">
+          <span class="info-label">店舗名</span>
+          <span class="info-value">COOKIE for MEN</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">業態</span>
+          <span class="info-value">メンズ専門サロン</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">電話番号</span>
+          <span class="info-value"><a href="tel:0962883577">096-288-3577</a></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">HP</span>
+          <span class="info-value"><a href="https://cookie-formen.site" target="_blank">cookie-formen.site</a></span>
+        </div>
+      </div>
+    </div>
+
+    <a class="btn btn-primary" href="https://job-medley.com/hb/710383/" target="_blank">
+      <h3>ジョブメドレーで詳細を見る</h3>
+      <p>求人情報・応募はこちら →</p>
+    </a>
+
+    <a class="btn btn-secondary" href="tel:0962883577">
+      <p>📞 電話でお問い合わせ</p>
+      <p class="small">タップで発信 096-288-3577</p>
+    </a>
+  </div>
+
+  <footer>COOKIE for MEN</footer>
+</body>
+</html>
