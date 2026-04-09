@@ -52,14 +52,9 @@ export async function POST(req: Request) {
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
   // コンセプトメニュー判定
-  let isConcept = false
-  if (body.selectedMenus && body.selectedMenus.length > 0) {
-    const { data: menus } = await supabase
-      .from('service_menus')
-      .select('id, is_concept')
-      .in('id', body.selectedMenus)
-    isConcept = !!menus?.some((m) => m.is_concept)
-  }
+  // カルテ作成時はカテゴリーキーのみ送られる（具体メニューはスタッフが施術ログで入力）
+  // 'kaizen' (髪質改善 / 縮毛矯正) が含まれていればコンセプト扱い
+  const isConcept = !!body.selectedMenus?.includes('kaizen')
 
   // 既存判定 (LINE userId 紐付き)
   let customerId: string | null = null

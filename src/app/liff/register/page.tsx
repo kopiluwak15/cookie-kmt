@@ -1,9 +1,8 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Check } from 'lucide-react'
-import type { ServiceMenuItem } from '@/types'
+import { Check, Loader2 } from 'lucide-react'
 
 // ===== 選択肢マスタ =====
 const VISIT_ROUTES = [
@@ -144,8 +143,6 @@ function LiffRegisterInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [step, setStep] = useState(0)
-  const [menus, setMenus] = useState<ServiceMenuItem[]>([])
-  const [loadingMenus, setLoadingMenus] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState<'none' | 'regular' | 'concept'>('none')
   const [error, setError] = useState<string | null>(null)
@@ -191,22 +188,6 @@ function LiffRegisterInner() {
     }
   }, [step])
 
-  // メニュー読み込み
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch('/api/menus/active')
-        const data = await res.json()
-        setMenus(data.menus || [])
-      } catch (err) {
-        console.error('menu fetch failed', err)
-      } finally {
-        setLoadingMenus(false)
-      }
-    }
-    load()
-  }, [])
-
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((p) => ({ ...p, [key]: value }))
 
@@ -217,14 +198,6 @@ function LiffRegisterInner() {
       (arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item]) as FormState[K]
     )
   }
-
-  const conceptCount = form.selectedMenus.filter(
-    (id) => menus.find((m) => m.id === id)?.is_concept
-  ).length
-  const total = form.selectedMenus.reduce(
-    (s, id) => s + (menus.find((m) => m.id === id)?.default_price ?? 0),
-    0
-  )
 
   const canNext = (() => {
     switch (step) {
@@ -342,6 +315,27 @@ function LiffRegisterInner() {
   }
 
   // ===== Content steps (1-12) =====
+  const nextBtn =
+    step < TOTAL_STEPS ? (
+      <button
+        type="button"
+        disabled={!canNext}
+        onClick={() => setStep((s) => s + 1)}
+        className="shrink-0 px-5 h-11 rounded-2xl bg-stone-900 text-white text-sm font-semibold disabled:opacity-40 transition"
+      >
+        次へ →
+      </button>
+    ) : (
+      <button
+        type="button"
+        disabled={!canNext || submitting}
+        onClick={handleSubmit}
+        className="shrink-0 px-5 h-11 rounded-2xl bg-stone-900 text-white text-sm font-semibold disabled:opacity-40 transition"
+      >
+        {submitting ? '送信中...' : '送信する'}
+      </button>
+    )
+
   return (
     <main
       className="bg-stone-50 overflow-x-hidden flex flex-col w-full"
@@ -364,59 +358,13 @@ function LiffRegisterInner() {
             />
           </div>
         </div>
-        {/* ナビゲーション（上部固定：キーボードで隠れないように） */}
-        <div className="w-full max-w-xl mx-auto px-5 pb-3">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStep((s) => Math.max(0, s - 1))}
-              className="flex-1 py-3 rounded-2xl border border-stone-200 bg-white text-sm font-semibold text-stone-700"
-            >
-              戻る
-            </button>
-            {step < TOTAL_STEPS ? (
-              <button
-                type="button"
-                disabled={!canNext}
-                onClick={() => setStep((s) => s + 1)}
-                className="flex-[2] py-3 rounded-2xl bg-stone-900 text-white text-sm font-semibold disabled:opacity-40 transition"
-              >
-                次へ
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={!canNext || submitting}
-                onClick={handleSubmit}
-                className="flex-[2] py-3 rounded-2xl bg-stone-900 text-white text-sm font-semibold disabled:opacity-40 transition"
-              >
-                {submitting ? '送信中...' : '送信する'}
-              </button>
-            )}
-          </div>
-          {step === 12 && form.selectedMenus.length > 0 && (
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-[11px] text-stone-500">
-                {form.selectedMenus.length}件選択
-              </span>
-              <span className="text-sm font-semibold text-stone-900 tabular-nums">
-                ¥{total.toLocaleString()}
-              </span>
-            </div>
-          )}
-          {error && (
-            <p className="text-center text-xs text-red-600 font-semibold mt-2">
-              {error}
-            </p>
-          )}
-        </div>
       </header>
 
       {/* コンテンツ */}
       <div className="flex-1 w-full max-w-xl mx-auto px-5 py-6">
         {/* Step 1: お名前・フリガナ */}
         {step === 1 && (
-          <StepFrame title="お名前を教えてください" sub="ご本名とフリガナをお願いします">
+          <StepFrame nextBtn={nextBtn} title="お名前を教えてください" sub="ご本名とフリガナをお願いします">
             <Field label="お名前" required>
               <input
                 type="text"
@@ -441,7 +389,7 @@ function LiffRegisterInner() {
 
         {/* Step 2: 生年月日・性別 */}
         {step === 2 && (
-          <StepFrame title="生年月日と性別" sub="スタイル提案の参考にさせていただきます">
+          <StepFrame nextBtn={nextBtn} title="生年月日と性別" sub="スタイル提案の参考にさせていただきます">
             <Field label="生年月日" required>
               <input
                 type="date"
@@ -480,7 +428,7 @@ function LiffRegisterInner() {
 
         {/* Step 3: 電話番号 */}
         {step === 3 && (
-          <StepFrame title="お電話番号" sub="ご連絡に使わせていただきます">
+          <StepFrame nextBtn={nextBtn} title="お電話番号" sub="ご連絡に使わせていただきます">
             <Field label="電話番号" required>
               <input
                 type="tel"
@@ -497,7 +445,7 @@ function LiffRegisterInner() {
 
         {/* Step 4: 住所・職業 */}
         {step === 4 && (
-          <StepFrame title="お住まい・ご職業" sub="差し支えなければお答えください（任意）">
+          <StepFrame nextBtn={nextBtn} title="お住まい・ご職業" sub="差し支えなければお答えください（任意）">
             <Field label="ご住所">
               <select
                 value={form.address}
@@ -531,7 +479,7 @@ function LiffRegisterInner() {
 
         {/* Step 5: 来店きっかけ */}
         {step === 5 && (
-          <StepFrame
+          <StepFrame nextBtn={nextBtn}
             title="当店をお知りになったきっかけ"
             sub="差し支えなければ教えてください"
           >
@@ -545,7 +493,7 @@ function LiffRegisterInner() {
 
         {/* Step 6: 施術歴 */}
         {step === 6 && (
-          <StepFrame
+          <StepFrame nextBtn={nextBtn}
             title="これまでの施術履歴"
             sub="前回・前々回に受けた施術があればお選びください（任意）"
           >
@@ -559,7 +507,7 @@ function LiffRegisterInner() {
 
         {/* Step 7: お悩み */}
         {step === 7 && (
-          <StepFrame
+          <StepFrame nextBtn={nextBtn}
             title="髪で気になっていること"
             sub="あてはまるものをお選びください"
           >
@@ -585,7 +533,7 @@ function LiffRegisterInner() {
 
         {/* Step 8: 選んだ理由 */}
         {step === 8 && (
-          <StepFrame
+          <StepFrame nextBtn={nextBtn}
             title="当サロンを選ばれた理由"
             sub="複数お選びいただけます（任意）"
           >
@@ -610,7 +558,7 @@ function LiffRegisterInner() {
 
         {/* Step 9: 過ごし方 */}
         {step === 9 && (
-          <StepFrame title="お店での過ごし方" sub="どのようにお過ごしになりたいですか">
+          <StepFrame nextBtn={nextBtn} title="お店での過ごし方" sub="どのようにお過ごしになりたいですか">
             <RadioList
               options={STAY_STYLES}
               value={form.stayStyle}
@@ -634,7 +582,7 @@ function LiffRegisterInner() {
 
         {/* Step 10: 苦手 */}
         {step === 10 && (
-          <StepFrame
+          <StepFrame nextBtn={nextBtn}
             title="苦手なこと・お伝えしたいこと"
             sub="事前に教えていただけると配慮いたします（任意）"
           >
@@ -659,7 +607,7 @@ function LiffRegisterInner() {
 
         {/* Step 11: 気になる箇所 */}
         {step === 11 && (
-          <StepFrame
+          <StepFrame nextBtn={nextBtn}
             title="髪で気になる箇所"
             sub="イラストをタップしてお選びください"
           >
@@ -689,32 +637,25 @@ function LiffRegisterInner() {
 
         {/* Step 12: メニュー */}
         {step === 12 && (
-          <StepFrame
+          <StepFrame nextBtn={nextBtn}
             title="ご希望のメニュー"
-            sub="気になるものをお選びください（複数可）"
+            sub="気になるカテゴリーをお選びください（複数可）"
           >
-            {loadingMenus ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto text-stone-400" />
-              </div>
-            ) : (
-              <MenuPicker
-                menus={menus}
-                selected={form.selectedMenus}
-                onToggle={(id) =>
-                  update(
-                    'selectedMenus',
-                    form.selectedMenus.includes(id)
-                      ? form.selectedMenus.filter((x) => x !== id)
-                      : [...form.selectedMenus, id]
-                  )
-                }
-              />
-            )}
-            {conceptCount > 0 && (
+            <CategoryPicker
+              selected={form.selectedMenus}
+              onToggle={(key) =>
+                update(
+                  'selectedMenus',
+                  form.selectedMenus.includes(key)
+                    ? form.selectedMenus.filter((x) => x !== key)
+                    : [...form.selectedMenus, key]
+                )
+              }
+            />
+            {form.selectedMenus.includes('kaizen') && (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center">
                 <p className="text-xs font-semibold text-amber-800">
-                  コンセプトメニューを選択中
+                  髪質改善 / 縮毛矯正 を選択中
                 </p>
                 <p className="text-[11px] text-amber-700/80 mt-1 leading-relaxed">
                   送信後、詳細アンケートにご回答いただきます
@@ -723,6 +664,27 @@ function LiffRegisterInner() {
             )}
           </StepFrame>
         )}
+      </div>
+
+      {/* 下部：戻るボタンのみ */}
+      <div
+        className="shrink-0 bg-white border-t border-stone-200 px-5 py-3 sticky bottom-0 z-20"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+      >
+        <div className="w-full max-w-xl mx-auto">
+          <button
+            type="button"
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            className="w-full py-3 rounded-2xl border border-stone-200 bg-white text-sm font-semibold text-stone-700"
+          >
+            ← 戻る
+          </button>
+          {error && (
+            <p className="text-center text-xs text-red-600 font-semibold mt-2">
+              {error}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* input style 共通 */}
@@ -750,15 +712,22 @@ function LiffRegisterInner() {
 function StepFrame({
   title,
   sub,
+  nextBtn,
   children,
 }: {
   title: string
   sub?: string
+  nextBtn?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <section>
-      <h1 className="text-xl font-bold text-stone-900 mb-2 leading-snug">{title}</h1>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <h1 className="text-xl font-bold text-stone-900 leading-snug flex-1 min-w-0">
+          {title}
+        </h1>
+        {nextBtn}
+      </div>
       {sub && <p className="text-xs text-stone-500 mb-6 leading-relaxed">{sub}</p>}
       <div className="space-y-4">{children}</div>
     </section>
@@ -919,156 +888,58 @@ function HeadIllustration({
   )
 }
 
-// ===== MenuPicker =====
-// 表示順 & 分類（先にマッチしたグループに属する）
-// 1. 髪質改善/縮毛矯正   （is_concept または 名前に 髪質改善/縮毛矯正/ストレート）
-// 2. ご相談/おまかせ     （名前に 相談/おまかせ）
-// 3. カット/カラー/パーマ/トリートメント
-// 4. メンテナンス/ヘッドスパ/ヘアセット/メイク
-// 5. 店内商品購入         （名前/カテゴリに 商品/物販/店販/購入）
-type GroupKey = 'kaizen' | 'consult' | 'regular' | 'care' | 'product'
-
-const GROUP_DEFS: { key: GroupKey; title: string; hint?: string; tone: 'amber' | 'neutral' }[] = [
-  { key: 'kaizen', title: '髪質改善 / 縮毛矯正', hint: '当店おすすめの本格メニュー', tone: 'amber' },
-  { key: 'consult', title: 'ご相談 / おまかせ', hint: 'スタイリストにご相談ください', tone: 'neutral' },
+// ===== CategoryPicker =====
+// 具体的な商品やメニューはスタッフが施術ログ時に入力するため、
+// カルテ作成時はカテゴリー選択のみに留める
+const CATEGORIES: { key: string; title: string; tone: 'amber' | 'neutral' }[] = [
+  { key: 'kaizen', title: '髪質改善 / 縮毛矯正', tone: 'amber' },
+  { key: 'consult', title: 'ご相談 / おまかせ', tone: 'neutral' },
   { key: 'regular', title: 'ヘアカット / カラー / パーマ / トリートメント', tone: 'neutral' },
   { key: 'care', title: 'メンテナンス / ヘッドスパ / ヘアセット / メイク', tone: 'neutral' },
   { key: 'product', title: '店内商品購入', tone: 'neutral' },
 ]
 
-function classifyMenu(m: ServiceMenuItem): GroupKey {
-  const name = m.name || ''
-  const category = (m.category || '').toString()
-  const hay = `${name} ${category}`
-
-  // 1. 髪質改善 / 縮毛矯正
-  if (m.is_concept) return 'kaizen'
-  if (/髪質改善|縮毛矯正|ストレート/.test(hay)) return 'kaizen'
-
-  // 2. ご相談 / おまかせ
-  if (/相談|おまかせ/.test(hay)) return 'consult'
-
-  // 5. 店内商品購入（先に判定。シャンプー等のケア剤がカット系に吸われないように）
-  if (/商品|物販|店販|購入|シャンプー剤|トリートメント剤|ショップ/.test(hay)) return 'product'
-
-  // 4. メンテナンス系（トリートメントはケア側と被るが、メンテナンス/ヘッドスパ/セット/メイク優先）
-  if (/メンテナンス|ヘッドスパ|スパ|ヘアセット|セット|メイク|アイロン/.test(hay)) return 'care'
-
-  // 3. カット / カラー / パーマ / トリートメント
-  if (/カット|カラー|パーマ|トリートメント|ブリーチ/.test(hay)) return 'regular'
-
-  // デフォルトは regular
-  return 'regular'
-}
-
-function MenuPicker({
-  menus,
+function CategoryPicker({
   selected,
   onToggle,
 }: {
-  menus: ServiceMenuItem[]
   selected: string[]
-  onToggle: (id: string) => void
-}) {
-  const groups = useMemo(() => {
-    const acc: Record<GroupKey, ServiceMenuItem[]> = {
-      kaizen: [],
-      consult: [],
-      regular: [],
-      care: [],
-      product: [],
-    }
-    for (const m of menus) {
-      acc[classifyMenu(m)].push(m)
-    }
-    return acc
-  }, [menus])
-
-  return (
-    <div className="space-y-6">
-      {GROUP_DEFS.map((def) =>
-        groups[def.key].length > 0 ? (
-          <MenuSection
-            key={def.key}
-            title={def.title}
-            hint={def.hint}
-            tone={def.tone}
-            menus={groups[def.key]}
-            selected={selected}
-            onToggle={onToggle}
-          />
-        ) : null
-      )}
-    </div>
-  )
-}
-
-function MenuSection({
-  title,
-  hint,
-  tone,
-  menus,
-  selected,
-  onToggle,
-}: {
-  title: string
-  hint?: string
-  tone: 'amber' | 'neutral'
-  menus: ServiceMenuItem[]
-  selected: string[]
-  onToggle: (id: string) => void
+  onToggle: (key: string) => void
 }) {
   return (
-    <div>
-      <div className="flex items-baseline justify-between mb-2">
-        <h3
-          className={`text-xs font-bold tracking-wide ${
-            tone === 'amber' ? 'text-amber-800' : 'text-stone-800'
-          }`}
-        >
-          {title}
-        </h3>
-        {hint && <p className="text-[10px] text-stone-500">{hint}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {menus.map((m) => {
-          const active = selected.includes(m.id)
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => onToggle(m.id)}
-              className={`p-3 rounded-2xl border text-left transition ${
-                active
-                  ? tone === 'amber'
-                    ? 'bg-amber-50 border-amber-600'
-                    : 'bg-stone-100 border-stone-900'
-                  : tone === 'amber'
-                  ? 'bg-white border-amber-200'
-                  : 'bg-white border-stone-200'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-1 mb-1.5">
-                <p className="text-[11px] font-semibold text-stone-900 leading-tight flex-1">
-                  {m.name}
-                </p>
-                {active && (
-                  <Check
-                    className={`h-4 w-4 shrink-0 ${
-                      tone === 'amber' ? 'text-amber-700' : 'text-stone-900'
-                    }`}
-                  />
-                )}
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-[10px] text-stone-700 font-semibold tabular-nums">
-                  ¥{(m.default_price ?? 0).toLocaleString()}
-                </span>
-              </div>
-            </button>
-          )
-        })}
-      </div>
+    <div className="space-y-3">
+      {CATEGORIES.map((c) => {
+        const active = selected.includes(c.key)
+        return (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => onToggle(c.key)}
+            className={`w-full text-left px-5 py-5 rounded-2xl border-2 transition ${
+              active
+                ? c.tone === 'amber'
+                  ? 'bg-amber-50 border-amber-600'
+                  : 'bg-stone-100 border-stone-900'
+                : c.tone === 'amber'
+                ? 'bg-white border-amber-200'
+                : 'bg-white border-stone-200'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold text-stone-900 leading-snug flex-1">
+                {c.title}
+              </p>
+              {active && (
+                <Check
+                  className={`h-5 w-5 shrink-0 ${
+                    c.tone === 'amber' ? 'text-amber-700' : 'text-stone-900'
+                  }`}
+                />
+              )}
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
 }

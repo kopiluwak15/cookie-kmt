@@ -212,47 +212,33 @@ function ConceptSurveyInner() {
             {step + 1} / {STEPS.length}
           </p>
         </div>
-        {/* ナビゲーション（上部固定：キーボードで隠れないように） */}
-        <div className="w-full px-4 pb-3 max-w-xl mx-auto">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStep((s) => Math.max(0, s - 1))}
-              disabled={step === 0}
-              className="flex-1 py-3 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 disabled:opacity-40"
-            >
-              ← 戻る
-            </button>
-            {step < STEPS.length - 1 ? (
-              <button
-                type="button"
-                disabled={!canNext}
-                onClick={() => setStep((s) => s + 1)}
-                className="flex-[2] py-3 rounded-xl bg-gray-900 text-white text-sm font-bold disabled:opacity-40"
-              >
-                次へ →
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={submit}
-                disabled={submitting}
-                className="flex-[2] py-3 rounded-xl bg-green-600 text-white text-sm font-bold disabled:opacity-40"
-              >
-                {submitting ? '送信中...' : '✓ 回答を送信する'}
-              </button>
-            )}
-          </div>
-          {error && (
-            <p className="text-center text-xs text-red-600 font-bold mt-2">
-              {error}
-            </p>
-          )}
-        </div>
       </header>
 
       <div className="flex-1 w-full px-4 py-5 max-w-xl mx-auto">
-        <h2 className="text-xl font-bold text-gray-900 mb-1">{STEPS[step].title}</h2>
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h2 className="text-xl font-bold text-gray-900 leading-snug flex-1 min-w-0">
+            {STEPS[step].title}
+          </h2>
+          {step < STEPS.length - 1 ? (
+            <button
+              type="button"
+              disabled={!canNext}
+              onClick={() => setStep((s) => s + 1)}
+              className="shrink-0 px-5 h-11 rounded-2xl bg-gray-900 text-white text-sm font-bold disabled:opacity-40"
+            >
+              次へ →
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={submitting}
+              className="shrink-0 px-5 h-11 rounded-2xl bg-green-600 text-white text-sm font-bold disabled:opacity-40"
+            >
+              {submitting ? '送信中...' : '送信する'}
+            </button>
+          )}
+        </div>
         <p className="text-xs text-gray-500 mb-5">{STEPS[step].sub}</p>
 
         {step === 0 && (
@@ -356,6 +342,27 @@ function ConceptSurveyInner() {
         )}
       </div>
 
+      {/* 下部：戻るボタンのみ */}
+      <div
+        className="shrink-0 bg-white border-t border-gray-200 px-4 py-3 sticky bottom-0 z-20"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+      >
+        <div className="w-full max-w-xl mx-auto">
+          <button
+            type="button"
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            disabled={step === 0}
+            className="w-full py-3 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-900 disabled:opacity-40"
+          >
+            ← 戻る
+          </button>
+          {error && (
+            <p className="text-center text-xs text-red-600 font-bold mt-2">
+              {error}
+            </p>
+          )}
+        </div>
+      </div>
     </main>
   )
 }
