@@ -4,10 +4,10 @@
 // 外部ブラウザへ引き継ぐ（liff.openWindow external:true）。
 // 以降のカルテ作成・アンケート・タイムカードはすべて通常ブラウザで動作する。
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import liff from '@line/liff'
-import { Loader2, ExternalLink, AlertCircle } from 'lucide-react'
+import { Loader2, ExternalLink, AlertCircle, UserPlus } from 'lucide-react'
 
 export default function LiffWelcomePage() {
   return (
@@ -31,6 +31,52 @@ function LiffWelcomeInner() {
   const [message, setMessage] = useState('LINE認証中...')
   const [error, setError] = useState('')
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null)
+  // 友だち追加ゲート
+  const [needsFriend, setNeedsFriend] = useState(false)
+  const [friendChecking, setFriendChecking] = useState(false)
+  const [profileState, setProfileState] = useState<{ lid: string; dn: string } | null>(null)
+  // 公式LINE友だち追加URL（DB global_settings.line_oa_basic_id から取得）
+  const [friendAddUrl, setFriendAddUrl] = useState('')
+
+  // ID取得後 → カルテ判定 → 外部ブラウザへ引き継ぐ共通処理
+  const proceedAfterFriend = useCallback(async (lid: string, dn: string) => {
+    const mode = searchParams?.get('mode')
+    const appUrl = window.location.origin
+    let targetUrl: string
+
+    if (mode === 'timecard') {
+      targetUrl = `${appUrl}/liff/timecard?lid=${encodeURIComponent(lid)}&dn=${encodeURIComponent(dn)}`
+    } else {
+      setMessage('お客様情報を確認中...')
+      const res = await fetch('/api/karte/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineUserId: lid }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '確認に失敗しました')
+
+      const base = `lid=${encodeURIComponent(lid)}&dn=${encodeURIComponent(dn)}`
+      if (!data.exists) {
+        targetUrl = `${appUrl}/liff/register?${base}`
+      } else if (data.needsConcept) {
+        targetUrl = `${appUrl}/liff/concept?${base}&cid=${encodeURIComponent(data.customerId || '')}`
+      } else {
+        targetUrl = `${appUrl}/liff/thanks?${base}`
+      }
+    }
+
+    setHandoffUrl(targetUrl)
+    setMessage('読み込み中...')
+
+    // LINE内（LIFF）内で画面遷移する。外部ブラウザ（Safari/Chrome）には飛ばさない
+    // ※ location.href なら同じLIFFコンテキストでそのまま遷移できる
+    try {
+      window.location.href = targetUrl
+    } catch (e) {
+      console.error('navigation failed', e)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID
@@ -49,60 +95,137 @@ function LiffWelcomeInner() {
         const profile = await liff.getProfile()
         const lid = profile.userId
         const dn = profile.displayName || ''
+        setProfileState({ lid, dn })
 
-        const mode = searchParams?.get('mode')
-        const appUrl = window.location.origin
-        let targetUrl: string
-
-        if (mode === 'timecard') {
-          targetUrl = `${appUrl}/liff/timecard?lid=${encodeURIComponent(lid)}&dn=${encodeURIComponent(dn)}`
-        } else {
-          setMessage('お客様情報を確認中...')
-          const res = await fetch('/api/karte/check', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lineUserId: lid }),
-          })
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error || '確認に失敗しました')
-
-          const base = `lid=${encodeURIComponent(lid)}&dn=${encodeURIComponent(dn)}`
-          if (!data.exists) {
-            targetUrl = `${appUrl}/liff/register?${base}`
-          } else if (data.needsConcept) {
-            targetUrl = `${appUrl}/liff/concept?${base}&cid=${encodeURIComponent(data.customerId || '')}`
-          } else {
-            targetUrl = `${appUrl}/liff/thanks?${base}`
-          }
-        }
-
-        setHandoffUrl(targetUrl)
-        setMessage('ブラウザに切り替えます...')
-
-        // LINE内ブラウザから外部ブラウザ（Safari/Chrome）へ引き継ぐ
+        // 公式LINE友だち追加URLを取得（失敗しても続行）
         try {
-          liff.openWindow({ url: targetUrl, external: true })
+          const oaRes = await fetch('/api/public/line-oa', { cache: 'no-store' })
+          const oaData = await oaRes.json()
+          if (oaData?.addFriendUrl) setFriendAddUrl(oaData.addFriendUrl)
         } catch (e) {
-          console.error('openWindow failed', e)
+          console.error('fetch line-oa failed', e)
         }
 
-        // 少し待ってから LIFF を閉じる（LINE内）
-        setTimeout(() => {
-          try {
-            if (liff.isInClient && liff.isInClient()) {
-              liff.closeWindow()
-            }
-          } catch {
-            // noop
-          }
-        }, 800)
+        // タイムカードモードは友だち追加不要（スタッフ用）
+        const mode = searchParams?.get('mode')
+        if (mode === 'timecard') {
+          await proceedAfterFriend(lid, dn)
+          return
+        }
+
+        // 友だち判定
+        setMessage('友だち状態を確認中...')
+        let isFriend = false
+        try {
+          const f = await liff.getFriendship()
+          isFriend = !!f.friendFlag
+        } catch (e) {
+          console.error('getFriendship failed', e)
+          // 取得失敗時は一旦ゲート表示してユーザーに判断させる
+          isFriend = false
+        }
+
+        if (!isFriend) {
+          setNeedsFriend(true)
+          setMessage('')
+          return
+        }
+
+        await proceedAfterFriend(lid, dn)
       } catch (err) {
         console.error('LIFF welcome error:', err)
         setError(err instanceof Error ? err.message : '初期化に失敗しました')
       }
     }
     run()
-  }, [searchParams])
+  }, [searchParams, proceedAfterFriend])
+
+  // 「追加しました」再チェック
+  const recheckFriendship = useCallback(async () => {
+    if (!profileState) return
+    setFriendChecking(true)
+    try {
+      const f = await liff.getFriendship()
+      if (f.friendFlag) {
+        setNeedsFriend(false)
+        setMessage('確認できました。続行します...')
+        await proceedAfterFriend(profileState.lid, profileState.dn)
+      } else {
+        setMessage('まだ友だち追加が確認できません。もう一度お試しください。')
+      }
+    } catch (e) {
+      console.error('recheck friendship failed', e)
+      setMessage('確認に失敗しました。もう一度お試しください。')
+    } finally {
+      setFriendChecking(false)
+    }
+  }, [profileState, proceedAfterFriend])
+
+  // 友だち追加画面へ遷移
+  const openFriendAdd = useCallback(() => {
+    if (!friendAddUrl) {
+      setError(
+        '公式LINEの友だち追加URLが設定されていません。管理画面 > 設定 > LINE設定で「公式LINE ベーシックID」を登録してください。'
+      )
+      return
+    }
+    try {
+      // LINE内ブラウザ内で追加画面を開く（external:false）
+      liff.openWindow({ url: friendAddUrl, external: false })
+    } catch (e) {
+      console.error('openWindow for friend add failed', e)
+      window.location.href = friendAddUrl
+    }
+  }, [friendAddUrl])
+
+  // 友だち追加ゲート画面
+  if (needsFriend) {
+    return (
+      <main
+        className="bg-gradient-to-b from-amber-50 to-white flex items-center justify-center px-6"
+        style={{ minHeight: '100dvh' }}
+      >
+        <div className="max-w-sm w-full bg-white rounded-2xl border border-amber-200 p-8 text-center shadow-sm">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mb-4">
+            <UserPlus className="h-8 w-8 text-amber-600" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">
+            公式LINEを友だち追加してください
+          </h2>
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            お礼メッセージや次回ご来店のご案内を
+            <br />
+            お送りするために、公式LINEの
+            <br />
+            友だち追加をお願いします。
+          </p>
+
+          <button
+            onClick={openFriendAdd}
+            className="w-full py-3.5 rounded-xl bg-[#06C755] text-white font-bold text-base shadow-sm hover:brightness-95 active:brightness-90 transition"
+          >
+            ＋ 友だち追加する
+          </button>
+
+          <p className="text-xs text-gray-500 mt-4">
+            追加したら下のボタンで次へ進んでください
+          </p>
+
+          <button
+            onClick={recheckFriendship}
+            disabled={friendChecking}
+            className="mt-3 w-full py-3 rounded-xl border border-gray-300 text-gray-800 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+          >
+            {friendChecking ? '確認中...' : '追加しました・次へ'}
+          </button>
+
+          {message && (
+            <p className="mt-4 text-xs text-amber-700">{message}</p>
+          )}
+        </div>
+      </main>
+    )
+  }
 
   if (error) {
     return (

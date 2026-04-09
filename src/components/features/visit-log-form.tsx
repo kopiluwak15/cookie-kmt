@@ -383,32 +383,38 @@ export function VisitLogForm({
             {(categorizedMenus.get(activeCategory) || []).map((menu) => {
               const isSelected = selectedMenus.some((m) => m.id === menu.id)
               return (
-                <Button
+                <button
                   key={menu.id}
                   type="button"
-                  variant={isSelected ? 'default' : 'outline'}
-                  className={cn(
-                    'h-auto min-h-[60px] py-2 px-3 text-sm relative justify-start',
-                    isSelected && 'ring-2 ring-offset-1'
-                  )}
                   onClick={() => handleMenuToggle(menu)}
+                  className={cn(
+                    'group relative w-full min-h-[64px] rounded-md border px-3 py-2 text-left transition-colors',
+                    'flex items-start gap-2 overflow-hidden',
+                    isSelected
+                      ? 'bg-primary text-primary-foreground border-primary ring-2 ring-primary/40 ring-offset-1'
+                      : 'bg-background hover:bg-accent hover:text-accent-foreground border-input'
+                  )}
                 >
                   {isSelected && (
-                    <Check className="h-4 w-4 mr-1.5 shrink-0" />
+                    <Check className="h-4 w-4 mt-0.5 shrink-0" />
                   )}
-                  <span className="flex flex-col items-start leading-tight text-left flex-1">
-                    <span className="flex items-center gap-1 break-all">
-                      {menu.is_concept && <span className="text-amber-400">★</span>}
-                      <span className="text-xs">{menu.name}</span>
+                  <span className="flex flex-col flex-1 min-w-0 leading-tight">
+                    <span className="flex items-start gap-1 min-w-0">
+                      {menu.is_concept && (
+                        <span className="text-amber-400 shrink-0">★</span>
+                      )}
+                      <span className="text-xs font-medium break-words whitespace-normal min-w-0 flex-1">
+                        {menu.name}
+                      </span>
                     </span>
-                    <span className="text-[10px] opacity-70 mt-0.5">
+                    <span className="text-[10px] opacity-70 mt-1 truncate">
                       {menu.default_price != null
                         ? `¥${menu.default_price.toLocaleString()}`
                         : '価格未設定'}
                       {menu.estimated_minutes > 0 && ` / ${menu.estimated_minutes}分`}
                     </span>
                   </span>
-                </Button>
+                </button>
               )
             })}
           </div>
@@ -466,20 +472,25 @@ export function VisitLogForm({
                     s.gender === 'unisex' ||
                     s.gender == null
                 )
-                .map((style) => (
-                  <Button
-                    key={style.id}
-                    type="button"
-                    variant={selectedStyle?.id === style.id ? 'default' : 'outline'}
-                    className={cn(
-                      'h-11 text-sm',
-                      selectedStyle?.id === style.id && 'ring-2 ring-offset-2'
-                    )}
-                    onClick={() => handleStyleSelect(style)}
-                  >
-                    {style.style_name}
-                  </Button>
-                ))}
+                .map((style) => {
+                  const isActive = selectedStyle?.id === style.id
+                  return (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => handleStyleSelect(style)}
+                      className={cn(
+                        'w-full min-h-[44px] rounded-md border px-2 py-1.5 text-xs leading-tight break-words whitespace-normal transition-colors',
+                        'flex items-center justify-center text-center',
+                        isActive
+                          ? 'bg-primary text-primary-foreground border-primary ring-2 ring-primary/40 ring-offset-1'
+                          : 'bg-background hover:bg-accent hover:text-accent-foreground border-input'
+                      )}
+                    >
+                      {style.style_name}
+                    </button>
+                  )
+                })}
               {styles.filter(
                 (s) =>
                   s.gender === selectedGender ||

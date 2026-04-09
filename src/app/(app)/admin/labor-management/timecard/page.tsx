@@ -88,9 +88,18 @@ export default function TimecardPage() {
   const [customFrom, setCustomFrom] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() - 30)
-    return d.toISOString().split('T')[0]
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
   })
-  const [customTo, setCustomTo] = useState(() => new Date().toISOString().split('T')[0])
+  const [customTo, setCustomTo] = useState(() => {
+    const d = new Date()
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  })
 
   const staff = staffList.find(s => s.id === selectedStaff)
 
@@ -510,13 +519,21 @@ export default function TimecardPage() {
   // ============================================
   // タブ1「直近」用: 本日 / 昨日 / 一昨日 のピボット
   // ============================================
+  // 注意: `toISOString()` を使うと JST ブラウザで日付が1日ズレるため
+  // ローカル日付文字列を手動で組み立てる
+  const formatLocalDate = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
   const pivotDates: string[] = (() => {
     if (!recentRange) return []
     const dates: string[] = []
     const start = new Date(recentRange.from + 'T00:00:00')
     const end = new Date(recentRange.to + 'T00:00:00')
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      dates.push(d.toISOString().split('T')[0])
+      dates.push(formatLocalDate(d))
     }
     return dates.reverse() // 新しい日付が左
   })()

@@ -165,6 +165,29 @@ export default function LineSettingsPage() {
             </div>
           </div>
           <div className="space-y-2">
+            <Label>公式LINE ベーシックID</Label>
+            <div className="flex gap-2">
+              <Input
+                defaultValue={getSetting('line_oa_basic_id')}
+                placeholder="@gxz9544w"
+                id="line_oa_basic_id"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  const el = document.getElementById('line_oa_basic_id') as HTMLInputElement
+                  handleSaveGlobal('line_oa_basic_id', el.value.trim())
+                }}
+              >
+                <Save className="h-3 w-3" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              LINE Official Account Manager の「設定 → アカウント設定 → ベーシックID」で確認できる @ から始まる文字列。
+              LIFFの初回起動時にお客様が友だち追加する際のリンク先に使われます。
+            </p>
+          </div>
+          <div className="space-y-2">
             <Label>休眠顧客しきい値（日）</Label>
             <div className="flex gap-2">
               <Input
