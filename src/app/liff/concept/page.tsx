@@ -68,13 +68,13 @@ const PRIORITIES = [
 ]
 
 const STEPS = [
-  { title: '今のお悩み', sub: '当てはまるものを全て選んでください' },
-  { title: '生活への影響', sub: '髪の悩みが日常にどう影響していますか？' },
-  { title: 'お気持ち', sub: '髪に対して感じていることを教えてください' },
-  { title: '過去の経験', sub: '美容室での施術経験について' },
-  { title: '理想の状態', sub: 'どうなったら嬉しいですか？' },
-  { title: '優先順位', sub: '特に大事なことを選んでください' },
-  { title: '不安なこと', sub: '何でもお書きください（任意）' },
+  { title: '今のお悩み', sub: '当てはまるものを全て選んでください', multi: true },
+  { title: '生活への影響', sub: '髪の悩みが日常にどう影響していますか？', multi: true },
+  { title: 'お気持ち', sub: '髪に対して感じていることを教えてください', multi: true },
+  { title: '過去の経験', sub: '美容室での施術経験について', multi: true },
+  { title: '理想の状態', sub: 'どうなったら嬉しいですか？', multi: true },
+  { title: '優先順位', sub: '特に大事なことを選んでください', multi: true },
+  { title: '不安なこと', sub: '何でもお書きください（任意）', multi: false },
 ] as const
 
 export default function ConceptSurveyPage() {
@@ -322,7 +322,30 @@ function ConceptSurveyInner() {
             </button>
           )}
         </div>
-        <p className="text-xs text-gray-500 mb-5">{STEPS[step].sub}</p>
+        <p className="text-xs text-gray-500 mb-3">{STEPS[step].sub}</p>
+        {STEPS[step].multi && (
+          <div className="inline-flex items-center gap-1.5 mb-5 px-3 py-1.5 rounded-full bg-amber-100 border border-amber-300">
+            <span className="text-[11px] font-bold text-amber-800">
+              ✓ 複数選択できます
+            </span>
+            {(() => {
+              const counts: Record<number, number> = {
+                0: symptoms.length,
+                1: lifeImpacts.length,
+                2: psychology.length,
+                3: pastExp.length,
+                4: successCriteria.length,
+                5: priorities.length,
+              }
+              const n = counts[step] ?? 0
+              return n > 0 ? (
+                <span className="text-[11px] font-bold text-amber-900 tabular-nums">
+                  （{n}件選択中）
+                </span>
+              ) : null
+            })()}
+          </div>
+        )}
 
         {step === 0 && (
           <div className="space-y-2">
@@ -554,11 +577,23 @@ function ChipColumn({
             key={o}
             type="button"
             onClick={() => onToggle(o)}
-            className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-semibold transition ${
-              active ? 'border-gray-900 bg-gray-50 text-gray-900' : 'border-gray-200 bg-white text-gray-900'
+            className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-semibold transition flex items-center gap-3 ${
+              active
+                ? 'border-gray-900 bg-gray-50 text-gray-900'
+                : 'border-gray-200 bg-white text-gray-900'
             }`}
           >
-            {o}
+            <span
+              className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition ${
+                active
+                  ? 'bg-gray-900 border-gray-900'
+                  : 'bg-white border-gray-300'
+              }`}
+              aria-hidden="true"
+            >
+              {active && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+            </span>
+            <span className="flex-1">{o}</span>
           </button>
         )
       })}
