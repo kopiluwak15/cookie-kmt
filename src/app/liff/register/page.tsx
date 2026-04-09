@@ -122,6 +122,45 @@ type FormState = {
 // 0: welcome (intro), 1-12: content steps
 const TOTAL_STEPS = 12
 
+const STORAGE_KEY = 'liff_register_draft_v1'
+
+const EMPTY_FORM: FormState = {
+  name: '',
+  furigana: '',
+  birthday: '',
+  phone: '',
+  address: '',
+  occupation: '',
+  gender: '',
+  visitRoute: '',
+  history: [],
+  worries: [],
+  worriesOther: '',
+  reasons: [],
+  reasonsOther: '',
+  stayStyle: '',
+  stayStyleOther: '',
+  dislikes: [],
+  dislikesOther: '',
+  spots: [],
+  selectedMenus: [],
+}
+
+function loadDraft(): { form: FormState; step: number } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { form?: Partial<FormState>; step?: number }
+    return {
+      form: { ...EMPTY_FORM, ...(parsed.form || {}) },
+      step: typeof parsed.step === 'number' ? parsed.step : 0,
+    }
+  } catch {
+    return null
+  }
+}
+
 export default function LiffRegisterPage() {
   return (
     <Suspense
@@ -142,33 +181,24 @@ export default function LiffRegisterPage() {
 function LiffRegisterInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  // ドラフトから初期化（SSRでは null → hydrate 後に復元）
   const [step, setStep] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState<'none' | 'regular' | 'concept'>('none')
   const [error, setError] = useState<string | null>(null)
   const [lineUserId, setLineUserId] = useState<string | null>(null)
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [hydrated, setHydrated] = useState(false)
 
-  const [form, setForm] = useState<FormState>({
-    name: '',
-    furigana: '',
-    birthday: '',
-    phone: '',
-    address: '',
-    occupation: '',
-    gender: '',
-    visitRoute: '',
-    history: [],
-    worries: [],
-    worriesOther: '',
-    reasons: [],
-    reasonsOther: '',
-    stayStyle: '',
-    stayStyleOther: '',
-    dislikes: [],
-    dislikesOther: '',
-    spots: [],
-    selectedMenus: [],
-  })
+  // 初回マウント時にドラフト復元
+  useEffect(() => {
+    const draft = loadDraft()
+    if (draft) {
+      setForm(draft.form)
+      setStep(draft.step)
+    }
+    setHydrated(true)
+  }, [])
 
   // LINE userId & 表示名 取得（URLクエリ優先、なければsessionStorageフォールバック）
   useEffect(() => {
@@ -177,8 +207,7 @@ function LiffRegisterInner() {
     const lid = qLid || sessionStorage.getItem('liff_line_user_id')
     const dn = qDn || sessionStorage.getItem('liff_display_name')
     if (lid) setLineUserId(lid)
-    if (dn && !form.name) setForm((p) => ({ ...p, name: dn }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (dn) setForm((p) => (p.name ? p : { ...p, name: dn }))
   }, [searchParams])
 
   // ステップ切替時にスクロール位置をリセット
@@ -187,6 +216,16 @@ function LiffRegisterInner() {
       window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
     }
   }, [step])
+
+  // form / step が変わるたびにドラフト保存（hydrate 後のみ）
+  useEffect(() => {
+    if (!hydrated) return
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ form, step }))
+    } catch {
+      // quota etc.
+    }
+  }, [form, step, hydrated])
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((p) => ({ ...p, [key]: value }))
@@ -249,6 +288,10 @@ function LiffRegisterInner() {
       if (json.customer?.id) {
         sessionStorage.setItem('liff_customer_id', json.customer.id)
       }
+      // 送信成功 → ドラフトを破棄
+      try {
+        sessionStorage.removeItem(STORAGE_KEY)
+      } catch {}
       if (json.customer?.isConcept) {
         // コンセプトメニューの場合は、完了画面を挟まずに直接アンケートへ
         const q = new URLSearchParams()

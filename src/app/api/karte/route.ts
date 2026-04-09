@@ -125,7 +125,8 @@ export async function POST(req: Request) {
     dislikes: body.dislikes,
     dislikes_other: body.dislikesOther || null,
     spots: body.spots,
-    selected_menus: body.selectedMenus,
+    // selected_menus カラムは uuid[] 型のためカテゴリー文字列は入れない。
+    // カテゴリー選択は raw (jsonb) に selectedMenus として保存される。
     is_concept_session: isConcept,
     raw: body,
   })

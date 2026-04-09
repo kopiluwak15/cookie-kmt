@@ -94,19 +94,40 @@ export default function ConceptSurveyPage() {
   )
 }
 
+const CONCEPT_STORAGE_KEY = 'liff_concept_draft_v1'
+
+type ConceptDraft = {
+  step: number
+  symptoms: string[]
+  symptomsOther: string
+  lifeImpacts: string[]
+  lifeOther: string
+  psychology: string[]
+  pastExp: string[]
+  successCriteria: string[]
+  successFree: string
+  priorities: string[]
+  worries: string
+}
+
+function loadConceptDraft(): ConceptDraft | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(CONCEPT_STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as ConceptDraft
+  } catch {
+    return null
+  }
+}
+
 function ConceptSurveyInner() {
   const searchParams = useSearchParams()
   const [step, setStep] = useState(0)
   const [done, setDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // ステップ切替時にスクロール位置をリセット
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
-    }
-  }, [step])
+  const [hydrated, setHydrated] = useState(false)
 
   const [symptoms, setSymptoms] = useState<string[]>([])
   const [symptomsOther, setSymptomsOther] = useState('')
@@ -118,6 +139,68 @@ function ConceptSurveyInner() {
   const [successFree, setSuccessFree] = useState('')
   const [priorities, setPriorities] = useState<string[]>([])
   const [worries, setWorries] = useState('')
+
+  // 初回マウント時にドラフト復元
+  useEffect(() => {
+    const d = loadConceptDraft()
+    if (d) {
+      setStep(d.step ?? 0)
+      setSymptoms(d.symptoms ?? [])
+      setSymptomsOther(d.symptomsOther ?? '')
+      setLifeImpacts(d.lifeImpacts ?? [])
+      setLifeOther(d.lifeOther ?? '')
+      setPsychology(d.psychology ?? [])
+      setPastExp(d.pastExp ?? [])
+      setSuccessCriteria(d.successCriteria ?? [])
+      setSuccessFree(d.successFree ?? '')
+      setPriorities(d.priorities ?? [])
+      setWorries(d.worries ?? '')
+    }
+    setHydrated(true)
+  }, [])
+
+  // ステップ切替時にスクロール位置をリセット
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+    }
+  }, [step])
+
+  // 入力が変わるたびにドラフト保存（hydrate 後のみ）
+  useEffect(() => {
+    if (!hydrated) return
+    try {
+      sessionStorage.setItem(
+        CONCEPT_STORAGE_KEY,
+        JSON.stringify({
+          step,
+          symptoms,
+          symptomsOther,
+          lifeImpacts,
+          lifeOther,
+          psychology,
+          pastExp,
+          successCriteria,
+          successFree,
+          priorities,
+          worries,
+        })
+      )
+    } catch {}
+  }, [
+    hydrated,
+    step,
+    symptoms,
+    symptomsOther,
+    lifeImpacts,
+    lifeOther,
+    psychology,
+    pastExp,
+    successCriteria,
+    successFree,
+    priorities,
+    worries,
+  ])
 
   const tog = (arr: string[], set: (v: string[]) => void, v: string) =>
     arr.includes(v) ? set(arr.filter((x) => x !== v)) : set([...arr, v])
