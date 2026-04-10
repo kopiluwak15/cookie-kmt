@@ -16,14 +16,12 @@ import {
   UserCircle,
   User,
   MessageSquareHeart,
-  QrCode,
 } from 'lucide-react'
 
 // スタッフ用ナビゲーション
 const staffNav = [
   { href: '/staff/visit-log', label: '施術ログ', icon: ClipboardList },
   { href: '/staff/counseling', label: 'カウンセリング', icon: MessageSquareHeart },
-  { href: '/staff/karte-qr', label: 'カルテ閲覧QR', icon: QrCode },
   { href: '/staff/store-sales', label: '店舗売上', icon: TrendingUp },
   { href: '/staff/performance', label: 'マイ実績', icon: UserCircle },
   { href: '/staff/mypage', label: 'マイページ', icon: User },

@@ -13,6 +13,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/walkin') ||
     pathname.startsWith('/counseling/fill') ||
     pathname.startsWith('/liff') ||
+    pathname.startsWith('/karte-qr') ||
     pathname.startsWith('/api/webhook') ||
     pathname.startsWith('/api/survey') ||
     pathname.startsWith('/api/walkin') ||
