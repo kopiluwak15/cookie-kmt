@@ -46,6 +46,9 @@ function LiffWelcomeInner() {
 
     if (mode === 'timecard') {
       targetUrl = `${appUrl}/liff/timecard?lid=${encodeURIComponent(lid)}&dn=${encodeURIComponent(dn)}`
+    } else if (mode === 'karte') {
+      const karteToken = searchParams?.get('token') || ''
+      targetUrl = `${appUrl}/liff/karte?token=${encodeURIComponent(karteToken)}&lid=${encodeURIComponent(lid)}`
     } else {
       setMessage('お客様情報を確認中...')
       const res = await fetch('/api/karte/check', {
@@ -111,9 +114,9 @@ function LiffWelcomeInner() {
           console.error('fetch line-oa failed', e)
         }
 
-        // タイムカードモードは友だち追加不要（スタッフ用）
+        // スタッフ用モードは友だち追加不要
         const mode = searchParams?.get('mode')
-        if (mode === 'timecard') {
+        if (mode === 'timecard' || mode === 'karte') {
           await proceedAfterFriend(lid, dn)
           return
         }

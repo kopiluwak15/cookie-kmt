@@ -49,36 +49,11 @@ const TREATMENT_PRESETS = [
   '酵素クレンジング',
 ]
 
-// 薬剤カテゴリ・プリセット（COOKIE 熊本向け）
-const CHEMICAL_CATEGORIES = [
-  {
-    label: 'ストレート',
-    items: [
-      '酸性ストレート1液', 'アルカリ1液', 'チオ系1液', 'シス系1液',
-      '2液(過酸化水素)', '2液(臭素酸)', 'GMT', 'スピエラ',
-    ],
-  },
-  {
-    label: 'カラー',
-    items: [
-      'アルカリカラー', 'ノンジアミン', 'ヘアマニキュア', 'ブリーチ',
-      'オキシ3%', 'オキシ6%', 'オキシ9%',
-    ],
-  },
-  {
-    label: 'パーマ',
-    items: [
-      'コスメパーマ液', 'チオ系パーマ', 'シス系パーマ', 'デジタルパーマ',
-    ],
-  },
-  {
-    label: 'トリートメント',
-    items: [
-      '酸熱トリートメント', '水素トリートメント', 'ケラチン補修',
-      '酵素クレンジング', 'TOKIOインカラミ', 'オージュア',
-    ],
-  },
-]
+// 薬剤カテゴリ型（DBから取得、propsで受け取る）
+interface ChemicalCategory {
+  label: string
+  items: string[]
+}
 
 // カテゴリ表示順（service_menus.category と一致させる）
 const CATEGORY_ORDER = [
@@ -120,12 +95,14 @@ interface VisitLogFormProps {
   styles: StyleSetting[]
   serviceMenus: ServiceMenuItem[]
   currentStaffName: string
+  chemicalCategories: ChemicalCategory[]
 }
 
 export function VisitLogForm({
   styles,
   serviceMenus,
   currentStaffName,
+  chemicalCategories,
 }: VisitLogFormProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<{
     id: string
@@ -741,7 +718,7 @@ export function VisitLogForm({
               使用した薬剤をチップで選択＋補足を自由記述
             </p>
           </div>
-          {CHEMICAL_CATEGORIES.map((cat) => (
+          {chemicalCategories.map((cat) => (
             <div key={cat.label} className="space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground">{cat.label}</p>
               <div className="flex flex-wrap gap-1.5">
