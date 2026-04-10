@@ -92,7 +92,9 @@ function LiffWelcomeInner() {
       try {
         await liff.init({ liffId })
         if (!liff.isLoggedIn()) {
-          liff.login()
+          // OAuth ラウンドトリップでクエリが消えるのを防ぐため、
+          // 現在の完全な URL を redirectUri として明示的に渡す
+          liff.login({ redirectUri: window.location.href })
           return
         }
         const profile = await liff.getProfile()
