@@ -125,6 +125,7 @@ export interface VisitHistory {
   checkout_at: string | null
   price: number | null
   expected_duration_minutes: number | null
+  chemical_notes: string | null
   created_at: string
   // リレーション
   customer?: Customer

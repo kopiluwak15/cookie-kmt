@@ -49,6 +49,37 @@ const TREATMENT_PRESETS = [
   '酵素クレンジング',
 ]
 
+// 薬剤カテゴリ・プリセット（COOKIE 熊本向け）
+const CHEMICAL_CATEGORIES = [
+  {
+    label: 'ストレート',
+    items: [
+      '酸性ストレート1液', 'アルカリ1液', 'チオ系1液', 'シス系1液',
+      '2液(過酸化水素)', '2液(臭素酸)', 'GMT', 'スピエラ',
+    ],
+  },
+  {
+    label: 'カラー',
+    items: [
+      'アルカリカラー', 'ノンジアミン', 'ヘアマニキュア', 'ブリーチ',
+      'オキシ3%', 'オキシ6%', 'オキシ9%',
+    ],
+  },
+  {
+    label: 'パーマ',
+    items: [
+      'コスメパーマ液', 'チオ系パーマ', 'シス系パーマ', 'デジタルパーマ',
+    ],
+  },
+  {
+    label: 'トリートメント',
+    items: [
+      '酸熱トリートメント', '水素トリートメント', 'ケラチン補修',
+      '酵素クレンジング', 'TOKIOインカラミ', 'オージュア',
+    ],
+  },
+]
+
 // カテゴリ表示順（service_menus.category と一致させる）
 const CATEGORY_ORDER = [
   'カット',
@@ -114,6 +145,8 @@ export function VisitLogForm({
   const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
   const [otherAmount, setOtherAmount] = useState('')
   const [otherNote, setOtherNote] = useState('')
+  const [chemicalTags, setChemicalTags] = useState<string[]>([])
+  const [chemicalRaw, setChemicalRaw] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [activeCategory, setActiveCategory] = useState<string>('')
   // 症例データ
@@ -243,6 +276,14 @@ export function VisitLogForm({
       }
       if (price) {
         formData.set('price', price)
+      }
+
+      // 薬剤記録（レギュラー・コンセプト共通）
+      const chemParts: string[] = []
+      if (chemicalTags.length > 0) chemParts.push(chemicalTags.join(', '))
+      if (chemicalRaw.trim()) chemParts.push(chemicalRaw.trim())
+      if (chemParts.length > 0) {
+        formData.set('chemical_notes', chemParts.join('\n'))
       }
 
       // コンセプトメニュー判定（送信種別を分岐）
@@ -687,6 +728,71 @@ export function VisitLogForm({
           <p className="text-xs text-muted-foreground">
             不正防止のため、ログイン中のスタッフが自動で設定されます
           </p>
+        </div>
+
+        {/* 薬剤について（レギュラー・コンセプト共通） */}
+        <div className="space-y-4 border-t pt-5">
+          <div>
+            <Label className="text-base font-semibold">
+              💊 薬剤について
+              <span className="ml-2 text-xs font-normal text-muted-foreground">任意</span>
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              使用した薬剤をチップで選択＋補足を自由記述
+            </p>
+          </div>
+          {CHEMICAL_CATEGORIES.map((cat) => (
+            <div key={cat.label} className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground">{cat.label}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {cat.items.map((item) => {
+                  const selected = chemicalTags.includes(item)
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() =>
+                        setChemicalTags((prev) =>
+                          selected ? prev.filter((t) => t !== item) : [...prev, item]
+                        )
+                      }
+                      className={cn(
+                        'rounded-full px-3 py-1 text-xs border transition-colors',
+                        selected
+                          ? 'bg-violet-600 text-white border-violet-600'
+                          : 'bg-background hover:bg-violet-50 border-muted-foreground/20'
+                      )}
+                    >
+                      {item}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          {chemicalTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 p-2 border rounded-md bg-violet-50">
+              {chemicalTags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="text-xs gap-1">
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => setChemicalTags((prev) => prev.filter((t) => t !== tag))}
+                    className="ml-0.5 hover:text-red-500"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          <Textarea
+            value={chemicalRaw}
+            onChange={(e) => setChemicalRaw(e.target.value)}
+            placeholder="補足（例: 1液 根元10分→中間5分 / オキシ6% 40g / アイロン160度）"
+            rows={2}
+            className="text-sm"
+          />
         </div>
 
         {/* 症例データ：コンセプトメニュー時のみ表示 */}

@@ -13,57 +13,100 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { QRCodeSVG } from 'qrcode.react'
-import { Send, QrCode, RefreshCw, Loader2 } from 'lucide-react'
+import { Send, QrCode, RefreshCw, Loader2, ChevronDown, ChevronUp, ClipboardList, FileText } from 'lucide-react'
 import {
   sendConceptResurveyLine,
   issueCounselingTokenUrl,
   getCheckedInPendingCustomers,
+  getCheckedInCustomersWithKarte,
   type PendingCheckedInCustomer,
+  type CheckedInCustomerWithKarte,
 } from '@/actions/counseling'
 
 interface Props {
   initialCustomers: PendingCheckedInCustomer[]
+  initialKarteCustomers: CheckedInCustomerWithKarte[]
 }
 
-export function CounselingTabs({ initialCustomers }: Props) {
+export function CounselingTabs({ initialCustomers, initialKarteCustomers }: Props) {
   const [customers, setCustomers] = useState<PendingCheckedInCustomer[]>(initialCustomers)
+  const [karteCustomers, setKarteCustomers] = useState<CheckedInCustomerWithKarte[]>(initialKarteCustomers)
   const [refreshing, startRefresh] = useTransition()
 
   const refresh = () => {
     startRefresh(async () => {
-      const fresh = await getCheckedInPendingCustomers()
+      const [fresh, freshKarte] = await Promise.all([
+        getCheckedInPendingCustomers(),
+        getCheckedInCustomersWithKarte(),
+      ])
       setCustomers(fresh)
+      setKarteCustomers(freshKarte)
     })
   }
 
   return (
-    <Tabs defaultValue="resurvey" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="resurvey">アンケート再送</TabsTrigger>
-      </TabsList>
+    <Tabs defaultValue="karte" className="space-y-4">
+      <div className="flex items-center justify-between">
+        <TabsList>
+          <TabsTrigger value="karte">
+            <ClipboardList className="h-3 w-3 mr-1" />
+            カルテ
+          </TabsTrigger>
+          <TabsTrigger value="resurvey">
+            <FileText className="h-3 w-3 mr-1" />
+            アンケート再送
+          </TabsTrigger>
+        </TabsList>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={refresh}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3" />
+          )}
+          <span className="ml-1">更新</span>
+        </Button>
+      </div>
 
+      {/* カルテタブ */}
+      <TabsContent value="karte" className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">本日チェックイン済みのカルテ・お悩みアンケート</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              お客様が入力したカルテと悩みアンケートの内容を確認できます
+            </p>
+          </CardHeader>
+          <CardContent>
+            {karteCustomers.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                本日カルテを入力したお客様はいません
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {karteCustomers.map((c) => (
+                  <KarteRow key={c.id} customer={c} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* アンケート再送タブ */}
       <TabsContent value="resurvey" className="space-y-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardHeader>
             <div>
               <CardTitle className="text-base">本日チェックイン済み（施術ログ未入力）</CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
                 施術完了前のお客様のみ表示しています
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refresh}
-              disabled={refreshing}
-            >
-              {refreshing ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3 w-3" />
-              )}
-              <span className="ml-1">更新</span>
-            </Button>
           </CardHeader>
           <CardContent>
             {customers.length === 0 ? (
@@ -84,6 +127,123 @@ export function CounselingTabs({ initialCustomers }: Props) {
   )
 }
 
+// ============================================
+// カルテ展開行
+// ============================================
+function KarteRow({ customer }: { customer: CheckedInCustomerWithKarte }) {
+  const [open, setOpen] = useState(false)
+  const k = customer.karte
+  const c = customer.concept
+
+  return (
+    <div className="border rounded-md bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full p-3 text-left hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">{customer.name}</span>
+          {customer.customer_code && (
+            <span className="text-xs text-muted-foreground">{customer.customer_code}</span>
+          )}
+          {k && <Badge variant="outline" className="text-[10px]">カルテ</Badge>}
+          {c && <Badge variant="secondary" className="text-[10px]">お悩み</Badge>}
+        </div>
+        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      </button>
+
+      {open && (
+        <div className="border-t px-4 py-3 space-y-4 bg-muted/10">
+          {/* カルテ (karte_intake) */}
+          {k && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-bold flex items-center gap-1">
+                <ClipboardList className="h-4 w-4" /> カルテ情報
+              </h4>
+              <div className="grid grid-cols-1 gap-2 text-xs">
+                {k.visit_route && <LabelValue label="来店経路" value={k.visit_route} />}
+                {k.todays_wish?.length > 0 && <LabelTags label="本日のご希望" tags={k.todays_wish} />}
+                {k.history?.length > 0 && <LabelTags label="施術履歴" tags={k.history} />}
+                {k.worries?.length > 0 && (
+                  <LabelTags label="お悩み" tags={k.worries} extra={k.worries_other} />
+                )}
+                {k.reasons?.length > 0 && (
+                  <LabelTags label="来店理由" tags={k.reasons} extra={k.reasons_other} />
+                )}
+                {k.stay_style && (
+                  <LabelValue label="なりたい印象" value={k.stay_style_other || k.stay_style} />
+                )}
+                {k.dislikes?.length > 0 && (
+                  <LabelTags label="苦手なこと" tags={k.dislikes} extra={k.dislikes_other} />
+                )}
+                {k.spots?.length > 0 && <LabelTags label="気になる部位" tags={k.spots} />}
+                {k.selected_menus_text && (
+                  <LabelValue label="希望メニュー" value={k.selected_menus_text} />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* お悩みアンケート (concept_intake) */}
+          {c && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-bold flex items-center gap-1">
+                <FileText className="h-4 w-4" /> お悩みアンケート
+              </h4>
+              <div className="grid grid-cols-1 gap-2 text-xs">
+                {c.symptoms?.length > 0 && (
+                  <LabelTags label="症状" tags={c.symptoms} extra={c.symptoms_other} />
+                )}
+                {c.life_impacts?.length > 0 && (
+                  <LabelTags label="生活への影響" tags={c.life_impacts} extra={c.life_other} />
+                )}
+                {c.psychology?.length > 0 && <LabelTags label="心理状態" tags={c.psychology} />}
+                {c.past_experiences?.length > 0 && <LabelTags label="過去の経験" tags={c.past_experiences} />}
+                {c.success_criteria?.length > 0 && (
+                  <LabelTags label="成功条件" tags={c.success_criteria} extra={c.success_free} />
+                )}
+                {c.priorities?.length > 0 && <LabelTags label="優先順位" tags={c.priorities} />}
+                {c.worries_free && <LabelValue label="その他悩み" value={c.worries_free} />}
+              </div>
+            </div>
+          )}
+
+          {!k && !c && (
+            <p className="text-xs text-muted-foreground">データがありません</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LabelValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="font-medium text-muted-foreground">{label}：</span>
+      <span>{value}</span>
+    </div>
+  )
+}
+
+function LabelTags({ label, tags, extra }: { label: string; tags: string[]; extra?: string | null }) {
+  return (
+    <div>
+      <span className="font-medium text-muted-foreground">{label}：</span>
+      <div className="flex flex-wrap gap-1 mt-0.5">
+        {tags.map((t) => (
+          <Badge key={t} variant="secondary" className="text-[10px] font-normal">{t}</Badge>
+        ))}
+        {extra && <span className="text-muted-foreground">({extra})</span>}
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// アンケート再送行（既存）
+// ============================================
 function CustomerRow({ customer }: { customer: PendingCheckedInCustomer }) {
   const [sending, setSending] = useState(false)
   const [sentMessage, setSentMessage] = useState<string | null>(null)

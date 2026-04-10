@@ -24,6 +24,7 @@ export async function createVisitLog(formData: FormData) {
   const treatmentTagsRaw = formData.get('treatment_tags') as string | null
   const concernRaw = formData.get('concern_raw') as string | null
   const treatmentRaw = formData.get('treatment_raw') as string | null
+  const chemicalNotes = formData.get('chemical_notes') as string | null
   const counselingNotes = formData.get('counseling_notes') as string | null
   const treatmentFindings = formData.get('treatment_findings') as string | null
   const nextProposal = formData.get('next_proposal') as string | null
@@ -79,6 +80,7 @@ export async function createVisitLog(formData: FormData) {
   if (priceStr) insertData.price = parseInt(priceStr, 10)
   if (expectedDurationStr) insertData.expected_duration_minutes = parseInt(expectedDurationStr, 10)
   if (notes && notes.trim()) insertData.notes = notes.trim()
+  if (chemicalNotes && chemicalNotes.trim()) insertData.chemical_notes = chemicalNotes.trim()
 
   let visit
   const { data, error } = await supabase

@@ -63,6 +63,110 @@ export async function getCheckedInPendingCustomers(): Promise<PendingCheckedInCu
     }))
 }
 
+// ============================================
+// カルテタブ用: 今日チェックイン済み顧客のカルテ＋お悩みアンケート
+// ============================================
+
+export interface KarteIntakeRow {
+  id: string
+  customer_id: string
+  visit_route: string | null
+  todays_wish: string[]
+  history: string[]
+  worries: string[]
+  worries_other: string | null
+  reasons: string[]
+  reasons_other: string | null
+  stay_style: string | null
+  stay_style_other: string | null
+  dislikes: string[]
+  dislikes_other: string | null
+  spots: string[]
+  selected_menus_text: string | null
+  is_concept_session: boolean
+  created_at: string
+}
+
+export interface ConceptIntakeRow {
+  id: string
+  customer_id: string
+  symptoms: string[]
+  symptoms_other: string | null
+  life_impacts: string[]
+  life_other: string | null
+  psychology: string[]
+  past_experiences: string[]
+  success_criteria: string[]
+  success_free: string | null
+  priorities: string[]
+  worries_free: string | null
+  created_at: string
+}
+
+export interface CheckedInCustomerWithKarte {
+  id: string
+  name: string
+  customer_code: string | null
+  karte: KarteIntakeRow | null
+  concept: ConceptIntakeRow | null
+}
+
+export async function getCheckedInCustomersWithKarte(): Promise<CheckedInCustomerWithKarte[]> {
+  const staff = await getCachedStaffInfo()
+  if (!staff) return []
+
+  const admin = createAdminClient()
+  const today = todayJst()
+
+  // 本日チェックイン済み顧客
+  const { data: customers } = await admin
+    .from('customer')
+    .select('id, name, customer_code')
+    .eq('last_visit_date', today)
+    .order('updated_at', { ascending: false })
+    .limit(50)
+
+  if (!customers || customers.length === 0) return []
+
+  const ids = customers.map((c) => c.id)
+
+  // karte_intake: 各顧客の最新1件（today）
+  const { data: kartes } = await admin
+    .from('karte_intake')
+    .select('*')
+    .in('customer_id', ids)
+    .gte('created_at', `${today}T00:00:00+09:00`)
+    .order('created_at', { ascending: false })
+
+  // concept_intake: 各顧客の最新1件（today）
+  const { data: concepts } = await admin
+    .from('concept_intake')
+    .select('*')
+    .in('customer_id', ids)
+    .gte('created_at', `${today}T00:00:00+09:00`)
+    .order('created_at', { ascending: false })
+
+  // customer_id → 最新1件をマップ
+  const karteMap = new Map<string, KarteIntakeRow>()
+  for (const k of (kartes || []) as KarteIntakeRow[]) {
+    if (!karteMap.has(k.customer_id)) karteMap.set(k.customer_id, k)
+  }
+  const conceptMap = new Map<string, ConceptIntakeRow>()
+  for (const c of (concepts || []) as ConceptIntakeRow[]) {
+    if (!conceptMap.has(c.customer_id)) conceptMap.set(c.customer_id, c)
+  }
+
+  return customers
+    .filter((c) => karteMap.has(c.id) || conceptMap.has(c.id))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      customer_code: c.customer_code,
+      karte: karteMap.get(c.id) || null,
+      concept: conceptMap.get(c.id) || null,
+    }))
+}
+
 /**
  * 指定顧客に「メニュー変更でカウンセリング再アンケート」LINE を送る
  */
