@@ -20,6 +20,7 @@ import {
   Clock,
   Megaphone,
   Settings,
+  MessageSquareHeart,
 } from 'lucide-react'
 
 // グループのプレフィックス（アクティブ判定用）
@@ -34,6 +35,7 @@ const groupPrefixes: Record<string, string> = {
 const allNav = [
   // スタッフ用
   { href: '/staff/visit-log', label: '施術ログ', icon: ClipboardList, roles: ['staff'] },
+  { href: '/staff/counseling', label: 'カウンセリング', icon: MessageSquareHeart, roles: ['staff'] },
   { href: '/staff/store-sales', label: '店舗売上', icon: TrendingUp, roles: ['staff'] },
   { href: '/staff/performance', label: 'マイ実績', icon: UserCircle, roles: ['staff'] },
   { href: '/staff/mypage', label: 'マイページ', icon: User, roles: ['staff'] },

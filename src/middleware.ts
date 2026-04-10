@@ -11,6 +11,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/survey') ||
     pathname.startsWith('/walkin') ||
+    pathname.startsWith('/counseling/fill') ||
     pathname.startsWith('/liff') ||
     pathname.startsWith('/api/webhook') ||
     pathname.startsWith('/api/survey') ||

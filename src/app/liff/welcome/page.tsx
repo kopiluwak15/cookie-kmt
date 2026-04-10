@@ -59,6 +59,9 @@ function LiffWelcomeInner() {
       const base = `lid=${encodeURIComponent(lid)}&dn=${encodeURIComponent(dn)}`
       if (!data.exists) {
         targetUrl = `${appUrl}/liff/register?${base}`
+      } else if (mode === 'concept') {
+        // カウンセリング途中でメニューが変わった場合の強制再アンケート
+        targetUrl = `${appUrl}/liff/concept?${base}&cid=${encodeURIComponent(data.customerId || '')}`
       } else if (data.needsConcept) {
         targetUrl = `${appUrl}/liff/concept?${base}&cid=${encodeURIComponent(data.customerId || '')}`
       } else {
