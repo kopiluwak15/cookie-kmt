@@ -6,8 +6,12 @@ export async function sendThankYouLine(
   customerId: string,
   visitId: string,
   styleCategoryId: string | null,
-  cycleDays: number
+  cycleDays: number,
+  isConcept: boolean = false
 ) {
+  const templateType: 'thank_you' | 'thank_you_concept' = isConcept
+    ? 'thank_you_concept'
+    : 'thank_you'
   const supabase = createAdminClient()
 
   // 顧客情報を取得
@@ -55,7 +59,7 @@ export async function sendThankYouLine(
   const { data: template } = await supabase
     .from('line_template_settings')
     .select('body_text, is_active')
-    .eq('template_type', 'thank_you')
+    .eq('template_type', templateType)
     .single()
 
   // Flex Message を構築（DBテンプレートがあればそちらを使用）
@@ -74,7 +78,7 @@ export async function sendThankYouLine(
     await supabase.from('line_message_history').insert({
       customer_id: customerId,
       visit_history_id: visitId,
-      message_type: 'thank_you',
+      message_type: templateType,
       line_request_id: result.requestId,
       status: 'sent',
     })
@@ -97,7 +101,7 @@ export async function sendThankYouLine(
       await supabase.from('line_message_history').insert({
         customer_id: customerId,
         visit_history_id: visitId,
-        message_type: 'thank_you',
+        message_type: templateType,
         status: 'blocked',
       })
       return
@@ -107,7 +111,7 @@ export async function sendThankYouLine(
     await supabase.from('line_message_history').insert({
       customer_id: customerId,
       visit_history_id: visitId,
-      message_type: 'thank_you',
+      message_type: templateType,
       status: 'failed',
       error_message: error.message,
     })

@@ -6,6 +6,10 @@
       "schedule": "0 1 * * *"
     },
     {
+      "path": "/api/cron/send-maintenance",
+      "schedule": "0 2 * * *"
+    },
+    {
       "path": "/api/cron/send-dormant",
       "schedule": "0 1 * * 1"
     },

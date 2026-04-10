@@ -224,6 +224,84 @@ export default function LineSettingsPage() {
               </Button>
             </div>
           </div>
+          <Separator />
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">メンテナンスチケット送信設定</Label>
+            <p className="text-xs text-muted-foreground">
+              コンセプトメニュー受診者にのみ自動送信されます。施術日からの経過日数と、チケット有効期限（送信日からの日数）を設定してください。
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">メンテナンス① 何日後に送信</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  defaultValue={getSetting('maintenance_1_days_after') || '30'}
+                  id="m1_days_after"
+                />
+                <Button size="sm" onClick={() => {
+                  const el = document.getElementById('m1_days_after') as HTMLInputElement
+                  handleSaveGlobal('maintenance_1_days_after', el.value)
+                }}>
+                  <Save className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">メンテナンス① 有効期限（日）</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  defaultValue={getSetting('maintenance_1_validity_days') || '14'}
+                  id="m1_validity"
+                />
+                <Button size="sm" onClick={() => {
+                  const el = document.getElementById('m1_validity') as HTMLInputElement
+                  handleSaveGlobal('maintenance_1_validity_days', el.value)
+                }}>
+                  <Save className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">メンテナンス② 何日後に送信</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  defaultValue={getSetting('maintenance_2_days_after') || '60'}
+                  id="m2_days_after"
+                />
+                <Button size="sm" onClick={() => {
+                  const el = document.getElementById('m2_days_after') as HTMLInputElement
+                  handleSaveGlobal('maintenance_2_days_after', el.value)
+                }}>
+                  <Save className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">メンテナンス② 有効期限（日）</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="1"
+                  defaultValue={getSetting('maintenance_2_validity_days') || '14'}
+                  id="m2_validity"
+                />
+                <Button size="sm" onClick={() => {
+                  const el = document.getElementById('m2_validity') as HTMLInputElement
+                  handleSaveGlobal('maintenance_2_validity_days', el.value)
+                }}>
+                  <Save className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <Separator />
           <div className="space-y-2">
             <Label>ルーレット当選確率（%）</Label>
             <div className="flex gap-2 items-center">
@@ -258,10 +336,10 @@ export default function LineSettingsPage() {
 
       {/* テンプレート設定 */}
       <Tabs defaultValue="thank_you">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7 h-auto">
           {templates.map((t) => (
-            <TabsTrigger key={t.template_type} value={t.template_type}>
-              {MESSAGE_TYPE_LABELS[t.template_type]}
+            <TabsTrigger key={t.template_type} value={t.template_type} className="text-xs">
+              {MESSAGE_TYPE_LABELS[t.template_type] || t.template_type}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -286,6 +364,8 @@ export default function LineSettingsPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     利用可能な変数: {'{{customer_name}}'}, {'{{style_name}}'}, {'{{cycle_days}}'}, {'{{coupon_text}}'}, {'{{weekday_text}}'}
+                    {(template.template_type === 'maintenance_1' || template.template_type === 'maintenance_2') &&
+                      `, {{ticket_valid_until}}, {{booking_url}}`}
                   </p>
                 </div>
 

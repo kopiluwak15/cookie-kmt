@@ -139,6 +139,9 @@ export interface CaseRecord {
   concern_raw: string | null
   treatment_tags: string[]
   treatment_raw: string | null
+  counseling_notes: string | null
+  treatment_findings: string | null
+  next_proposal: string | null
   satisfaction_self: number | null
   ai_summary: string | null
   ai_model: string | null
@@ -151,7 +154,7 @@ export interface LineMessageHistory {
   id: string
   customer_id: string
   visit_history_id: string | null
-  message_type: 'thank_you' | 'reminder1' | 'reminder2' | 'dormant' | 'custom'
+  message_type: 'thank_you' | 'thank_you_concept' | 'reminder1' | 'reminder2' | 'dormant' | 'custom' | 'maintenance_1' | 'maintenance_2'
   sent_at: string
   line_request_id: string | null
   status: 'sent' | 'failed' | 'blocked'
@@ -160,7 +163,7 @@ export interface LineMessageHistory {
 
 export interface LineTemplateSetting {
   id: string
-  template_type: 'thank_you' | 'reminder1' | 'reminder2' | 'dormant'
+  template_type: 'thank_you' | 'thank_you_concept' | 'reminder1' | 'reminder2' | 'dormant' | 'maintenance_1' | 'maintenance_2'
   title: string
   body_text: string
   coupon_text: string | null

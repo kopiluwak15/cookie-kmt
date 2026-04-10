@@ -12,6 +12,9 @@ export interface CreateCaseRecordInput {
   concern_raw?: string | null
   treatment_tags: string[]
   treatment_raw?: string | null
+  counseling_notes?: string | null
+  treatment_findings?: string | null
+  next_proposal?: string | null
   satisfaction_self?: number | null
 }
 
@@ -27,7 +30,10 @@ export async function createCaseRecord(
     input.concern_tags.length > 0 ||
     input.treatment_tags.length > 0 ||
     !!input.concern_raw?.trim() ||
-    !!input.treatment_raw?.trim()
+    !!input.treatment_raw?.trim() ||
+    !!input.counseling_notes?.trim() ||
+    !!input.treatment_findings?.trim() ||
+    !!input.next_proposal?.trim()
   if (!hasContent) return null
 
   const admin = createAdminClient()
@@ -40,6 +46,9 @@ export async function createCaseRecord(
       concern_raw: input.concern_raw?.trim() || null,
       treatment_tags: input.treatment_tags,
       treatment_raw: input.treatment_raw?.trim() || null,
+      counseling_notes: input.counseling_notes?.trim() || null,
+      treatment_findings: input.treatment_findings?.trim() || null,
+      next_proposal: input.next_proposal?.trim() || null,
       satisfaction_self: input.satisfaction_self ?? null,
     })
     .select('id')
@@ -66,6 +75,9 @@ export async function createCaseRecord(
         concernRaw: input.concern_raw,
         treatmentTags: input.treatment_tags,
         treatmentRaw: input.treatment_raw,
+        counselingNotes: input.counseling_notes,
+        treatmentFindings: input.treatment_findings,
+        nextProposal: input.next_proposal,
         customerContext: {
           visitCount: customer?.total_visits ?? undefined,
         },

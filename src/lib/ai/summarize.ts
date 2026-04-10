@@ -15,6 +15,9 @@ export interface SummarizeInput {
   concernRaw?: string | null
   treatmentTags: string[]
   treatmentRaw?: string | null
+  counselingNotes?: string | null
+  treatmentFindings?: string | null
+  nextProposal?: string | null
   customerContext?: {
     visitCount?: number
     previousStyles?: string[]
@@ -51,6 +54,21 @@ function buildUserPrompt(input: SummarizeInput): string {
   }
   if (input.treatmentRaw?.trim()) {
     lines.push(`詳細: ${input.treatmentRaw.trim()}`)
+  }
+  if (input.counselingNotes?.trim()) {
+    lines.push('')
+    lines.push('## カウンセリングで出てきた話')
+    lines.push(input.counselingNotes.trim())
+  }
+  if (input.treatmentFindings?.trim()) {
+    lines.push('')
+    lines.push('## 施術での発見')
+    lines.push(input.treatmentFindings.trim())
+  }
+  if (input.nextProposal?.trim()) {
+    lines.push('')
+    lines.push('## 次回への提案・申し送り')
+    lines.push(input.nextProposal.trim())
   }
   if (input.customerContext) {
     lines.push('')

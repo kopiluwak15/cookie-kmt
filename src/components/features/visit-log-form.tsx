@@ -5,6 +5,7 @@ import { createVisitLog } from '@/actions/visit-log'
 import { CustomerSearch } from './customer-search'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -120,6 +121,16 @@ export function VisitLogForm({
   const [concernRaw, setConcernRaw] = useState('')
   const [treatmentTags, setTreatmentTags] = useState<string[]>([])
   const [treatmentRaw, setTreatmentRaw] = useState('')
+  // 自由記述（コンセプトメニュー時のみ表示）
+  const [counselingNotes, setCounselingNotes] = useState('')
+  const [treatmentFindings, setTreatmentFindings] = useState('')
+  const [nextProposal, setNextProposal] = useState('')
+
+  // コンセプトメニューが選択されているか
+  const hasConceptMenu = useMemo(
+    () => selectedMenus.some((m) => m.is_concept),
+    [selectedMenus]
+  )
 
   // メニューをカテゴリでグループ化
   const categorizedMenus = useMemo(() => {
@@ -234,18 +245,34 @@ export function VisitLogForm({
         formData.set('price', price)
       }
 
-      // 症例データ（悩み・施術要点）
-      if (concernTags.length > 0) {
-        formData.set('concern_tags', concernTags.join(','))
+      // コンセプトメニュー判定（送信種別を分岐）
+      if (hasConceptMenu) {
+        formData.set('has_concept_menu', '1')
       }
-      if (concernRaw.trim()) {
-        formData.set('concern_raw', concernRaw.trim())
-      }
-      if (treatmentTags.length > 0) {
-        formData.set('treatment_tags', treatmentTags.join(','))
-      }
-      if (treatmentRaw.trim()) {
-        formData.set('treatment_raw', treatmentRaw.trim())
+
+      // 症例データ（コンセプトメニュー時のみ送信）
+      if (hasConceptMenu) {
+        if (concernTags.length > 0) {
+          formData.set('concern_tags', concernTags.join(','))
+        }
+        if (concernRaw.trim()) {
+          formData.set('concern_raw', concernRaw.trim())
+        }
+        if (treatmentTags.length > 0) {
+          formData.set('treatment_tags', treatmentTags.join(','))
+        }
+        if (treatmentRaw.trim()) {
+          formData.set('treatment_raw', treatmentRaw.trim())
+        }
+        if (counselingNotes.trim()) {
+          formData.set('counseling_notes', counselingNotes.trim())
+        }
+        if (treatmentFindings.trim()) {
+          formData.set('treatment_findings', treatmentFindings.trim())
+        }
+        if (nextProposal.trim()) {
+          formData.set('next_proposal', nextProposal.trim())
+        }
       }
 
       // その他の金額・備考を notes にまとめて保存
@@ -662,18 +689,19 @@ export function VisitLogForm({
           </p>
         </div>
 
-        {/* 症例データ：悩み × 施術要点（任意、蓄積すればAI分析で活用） */}
+        {/* 症例データ：コンセプトメニュー時のみ表示 */}
+        {hasConceptMenu && (
         <div className="space-y-4 border-t pt-5">
           <div className="flex items-start justify-between gap-2">
             <div>
               <Label className="text-base font-semibold">
                 症例メモ
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  悩み × 施術要点（任意）
+                <span className="ml-2 text-xs font-normal text-amber-700">
+                  コンセプトメニュー
                 </span>
               </Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                蓄積するとAIが要点をまとめ、リピート分析と連動します
+                悩み・カウンセリング・施術での発見・申し送りを記録 → AIが要約しリピート分析に活用
               </p>
             </div>
           </div>
@@ -763,7 +791,56 @@ export function VisitLogForm({
               className="text-sm"
             />
           </div>
+
+          {/* 自由記述: カウンセリング */}
+          <div className="space-y-2">
+            <div className="text-sm font-medium flex items-center gap-2">
+              🗣️ カウンセリングで出てきた話
+            </div>
+            <Textarea
+              value={counselingNotes}
+              onChange={(e) => setCounselingNotes(e.target.value)}
+              placeholder={
+                'お客様の言葉そのままで構いません。\n例: 子どもが生まれてから朝の支度に時間が取れない / 結婚式が3ヶ月後にあるのでそれまでにツヤを出したい / 前回の縮毛で根元がペタッとなった'
+              }
+              rows={4}
+              className="text-sm"
+            />
+          </div>
+
+          {/* 自由記述: 施術での発見 */}
+          <div className="space-y-2">
+            <div className="text-sm font-medium flex items-center gap-2">
+              🔍 施術での発見
+            </div>
+            <Textarea
+              value={treatmentFindings}
+              onChange={(e) => setTreatmentFindings(e.target.value)}
+              placeholder={
+                '施術中に気づいた毛髪の状態・薬剤の反応・想定外の挙動など。\n例: 中間部のダメージが想像より進行 / 1液は中間まで延ばしたが、根元は2分短縮で十分 / 右側の方がうねりが強い'
+              }
+              rows={4}
+              className="text-sm"
+            />
+          </div>
+
+          {/* 自由記述: 次回への提案・申し送り */}
+          <div className="space-y-2">
+            <div className="text-sm font-medium flex items-center gap-2">
+              📌 次回への提案・申し送り
+            </div>
+            <Textarea
+              value={nextProposal}
+              onChange={(e) => setNextProposal(e.target.value)}
+              placeholder={
+                '次回担当が読む前提で記入。\n例: 2ヶ月後に根元のリタッチ＋トリートメント推奨 / 次回はLv標準で十分 / アイロン温度は必ず160度以下'
+              }
+              rows={4}
+              className="text-sm"
+            />
+          </div>
         </div>
+        )}
 
         {/* 送信ボタン */}
         <Button

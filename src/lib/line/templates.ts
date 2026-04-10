@@ -630,3 +630,107 @@ export function buildDormantMessage(params: {
     },
   }
 }
+
+// メンテナンスチケットLINE（コンセプトメニュー後の自動配信）
+export function buildMaintenanceMessage(params: {
+  customerName: string
+  ticketLabel: string
+  ticketValidUntil: string
+  bookingUrl: string
+  bodyText?: string
+}): LineMessage {
+  if (params.bodyText) {
+    return buildMessageFromTemplate({
+      bodyText: params.bodyText,
+      altText: `${params.customerName}様、${params.ticketLabel}が届きました`,
+      variables: {
+        customer_name: params.customerName,
+        ticket_valid_until: params.ticketValidUntil,
+        booking_url: params.bookingUrl,
+      },
+      bookingUrl: params.bookingUrl,
+      buttonLabel: 'チケットを使って予約',
+    })
+  }
+
+  return {
+    type: 'flex',
+    altText: `${params.customerName}様、${params.ticketLabel}が届きました`,
+    contents: {
+      type: 'bubble',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: 'COOKIE 熊本',
+            weight: 'bold',
+            size: 'lg',
+            color: '#333333',
+          },
+        ],
+        backgroundColor: '#F5E6CC',
+        paddingAll: '15px',
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: `${params.customerName}様`,
+            weight: 'bold',
+            size: 'md',
+          },
+          {
+            type: 'text',
+            text: `🎟 ${params.ticketLabel}`,
+            wrap: true,
+            size: 'md',
+            weight: 'bold',
+            color: '#8B6914',
+            margin: 'md',
+          },
+          {
+            type: 'text',
+            text: `有効期限: ${params.ticketValidUntil}`,
+            wrap: true,
+            size: 'sm',
+            margin: 'sm',
+          },
+          {
+            type: 'text',
+            text: 'コンセプトメニュー後の状態維持にぜひご活用ください。',
+            wrap: true,
+            size: 'xs',
+            color: '#888888',
+            margin: 'lg',
+          },
+        ],
+        paddingAll: '15px',
+      },
+      ...(params.bookingUrl
+        ? {
+            footer: {
+              type: 'box',
+              layout: 'vertical',
+              contents: [
+                {
+                  type: 'button',
+                  action: {
+                    type: 'uri',
+                    label: 'チケットを使って予約',
+                    uri: params.bookingUrl,
+                  },
+                  style: 'primary',
+                  color: '#8B6914',
+                },
+              ],
+              paddingAll: '15px',
+            },
+          }
+        : {}),
+    },
+  }
+}
