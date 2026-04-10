@@ -1,25 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getCachedStaffInfo } from '@/lib/cached-auth'
-import { signCounselingToken } from '@/lib/counseling/token'
 import type { CaseRecord } from '@/types'
-
-/** QR用のカルテ閲覧URLを発行 */
-export async function issueKarteViewUrl(customerId: string) {
-  const staff = await getCachedStaffInfo()
-  if (!staff) return { ok: false as const, error: 'ログインが必要です' }
-
-  const token = signCounselingToken(customerId)
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kmt.cookie.hair'
-
-  const url = liffId
-    ? `https://liff.line.me/${liffId}?mode=karte&token=${encodeURIComponent(token)}`
-    : `${appUrl}/liff/karte?token=${encodeURIComponent(token)}`
-
-  return { ok: true as const, url }
-}
 
 export interface KarteViewData {
   customer: {
