@@ -47,7 +47,8 @@ function LiffWelcomeInner() {
     if (mode === 'timecard') {
       targetUrl = `${appUrl}/liff/timecard?lid=${encodeURIComponent(lid)}&dn=${encodeURIComponent(dn)}`
     } else if (mode === 'karte') {
-      targetUrl = `${appUrl}/liff/karte?lid=${encodeURIComponent(lid)}`
+      const sc = searchParams?.get('sc') || ''
+      targetUrl = `${appUrl}/liff/karte?lid=${encodeURIComponent(lid)}&sc=${encodeURIComponent(sc)}`
     } else {
       setMessage('お客様情報を確認中...')
       const res = await fetch('/api/karte/check', {
