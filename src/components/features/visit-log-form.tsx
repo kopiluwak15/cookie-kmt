@@ -701,15 +701,15 @@ export function VisitLogForm({
                 </span>
               </Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                悩み・カウンセリング・施術での発見・申し送りを記録 → AIが要約しリピート分析に活用
+                現状・カウンセリング・施術での発見・申し送りを記録 → AIが要約しリピート分析に活用
               </p>
             </div>
           </div>
 
-          {/* 悩みチップ */}
+          {/* 現状チップ（美容師から見た毛髪の現状） */}
           <div className="space-y-2">
             <div className="text-sm font-medium flex items-center gap-2">
-              💭 悩み
+              📋 現状
               {concernTags.length > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {concernTags.length}件選択中
@@ -744,7 +744,7 @@ export function VisitLogForm({
               type="text"
               value={concernRaw}
               onChange={(e) => setConcernRaw(e.target.value)}
-              placeholder="補足があれば自由記述（例: 左側だけ特にうねる）"
+              placeholder="補足があれば自由記述（例: 右側の方がうねりが強い、中間部のダメージ進行）"
               className="text-sm"
             />
           </div>

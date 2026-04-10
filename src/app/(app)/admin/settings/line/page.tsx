@@ -363,7 +363,7 @@ export default function LineSettingsPage() {
                     }}
                   />
                   <p className="text-xs text-muted-foreground">
-                    利用可能な変数: {'{{customer_name}}'}, {'{{style_name}}'}, {'{{cycle_days}}'}, {'{{coupon_text}}'}, {'{{weekday_text}}'}
+                    利用可能な変数: {'{{customer_name}}'}, {'{{style_name}}'}, {'{{cycle_days}}'}, {'{{next_visit_date}}'}, {'{{coupon_text}}'}, {'{{weekday_text}}'}
                     {(template.template_type === 'maintenance_1' || template.template_type === 'maintenance_2') &&
                       `, {{ticket_valid_until}}, {{booking_url}}`}
                   </p>

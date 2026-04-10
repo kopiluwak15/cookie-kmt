@@ -62,11 +62,18 @@ export async function sendThankYouLine(
     .eq('template_type', templateType)
     .single()
 
+  // 次回目安来店日を算出（JST、X月Y日形式）
+  const jstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  const nextDate = new Date(jstNow)
+  nextDate.setUTCDate(nextDate.getUTCDate() + cycleDays)
+  const nextVisitDate = `${nextDate.getUTCMonth() + 1}月${nextDate.getUTCDate()}日`
+
   // Flex Message を構築（DBテンプレートがあればそちらを使用）
   const message = buildThankYouMessage({
     customerName: customer.name,
     styleName,
     cycleDays,
+    nextVisitDate,
     bookingUrl,
     bodyText: template?.body_text || undefined,
   })

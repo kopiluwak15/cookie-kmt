@@ -161,9 +161,12 @@ export function buildThankYouMessage(params: {
   customerName: string
   styleName: string
   cycleDays: number
+  nextVisitDate?: string // "X月Y日" 形式
   bookingUrl: string
   bodyText?: string
 }): LineMessage {
+  const nvd = params.nextVisitDate || `${params.cycleDays}日後`
+
   // DBテンプレートがある場合はそちらを使用
   if (params.bodyText) {
     return buildMessageFromTemplate({
@@ -173,6 +176,8 @@ export function buildThankYouMessage(params: {
         customer_name: params.customerName,
         style_name: params.styleName,
         cycle_days: String(params.cycleDays),
+        next_visit_date: nvd,
+        booking_url: params.bookingUrl,
       },
       bookingUrl: params.bookingUrl,
       buttonLabel: '次回予約はこちら',
@@ -226,13 +231,15 @@ export function buildThankYouMessage(params: {
           },
           {
             type: 'text',
-            text: `おすすめの来店周期：約${params.cycleDays}日`,
+            text: `次回ご来店は ${nvd}（${params.cycleDays}日後）が目安です。`,
+            wrap: true,
             size: 'sm',
+            weight: 'bold',
             margin: 'sm',
           },
           {
             type: 'text',
-            text: '次回のご来店時期が近づきましたら\nLINEでお知らせいたします。',
+            text: '予約はこちらからどうぞ ↓',
             wrap: true,
             size: 'xs',
             color: '#888888',
