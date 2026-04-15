@@ -187,8 +187,9 @@ export async function sendConceptResurveyLine(
   if (!customer.line_user_id) return { ok: false, error: 'LINE 未登録の顧客です' }
   if (customer.line_blocked) return { ok: false, error: '公式LINEがブロックされています' }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kmt.cookie.hair'
-  const targetUrl = `${appUrl}/liff/welcome?mode=concept`
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID
+  if (!liffId) return { ok: false, error: 'LIFF_IDが設定されていません' }
+  const targetUrl = `https://liff.line.me/${liffId}?mode=concept`
 
   const text =
     `${customer.name} 様\n\n` +

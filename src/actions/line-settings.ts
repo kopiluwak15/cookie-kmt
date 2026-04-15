@@ -31,7 +31,7 @@ export async function updateLineTemplate(
     .eq('id', id)
 
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/settings/line')
+  revalidatePath('/admin/marketing/line')
 }
 
 export async function getGlobalSettings() {
@@ -56,5 +56,5 @@ export async function updateGlobalSetting(key: string, value: string) {
     )
 
   if (error) throw new Error(error.message)
-  revalidatePath('/admin/settings/line')
+  revalidatePath('/admin/marketing/line')
 }

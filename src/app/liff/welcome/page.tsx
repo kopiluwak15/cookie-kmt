@@ -170,19 +170,27 @@ function LiffWelcomeInner() {
   }, [profileState, proceedAfterFriend])
 
   // 友だち追加画面へ遷移
+  // Android版LINEでは liff.openWindow({ external: false }) が line.me/R/ti/p/ を
+  // 正しく処理できない場合があるため、window.location.href を第一手段として使用する
   const openFriendAdd = useCallback(() => {
     if (!friendAddUrl) {
       setError(
-        '公式LINEの友だち追加URLが設定されていません。管理画面 > 設定 > LINE設定で「公式LINE ベーシックID」を登録してください。'
+        '公式LINEの友だち追加URLが設定されていません。管理画面 > 集客 > LINE配信設定で「公式LINE ベーシックID」を登録してください。'
       )
       return
     }
+    // iOS/Android 両方で最も確実に友だち追加画面を開くのは location.href
     try {
-      // LINE内ブラウザ内で追加画面を開く（external:false）
-      liff.openWindow({ url: friendAddUrl, external: false })
-    } catch (e) {
-      console.error('openWindow for friend add failed', e)
       window.location.href = friendAddUrl
+    } catch (e) {
+      console.error('location.href for friend add failed', e)
+      // フォールバック: LIFF openWindow（external:true で外部ブラウザ扱い）
+      try {
+        liff.openWindow({ url: friendAddUrl, external: true })
+      } catch (e2) {
+        console.error('openWindow fallback failed', e2)
+        setError('友だち追加画面を開けませんでした。もう一度お試しください。')
+      }
     }
   }, [friendAddUrl])
 

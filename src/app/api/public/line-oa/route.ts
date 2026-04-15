@@ -23,7 +23,9 @@ export async function GET() {
 
     // "@abc123" 形式を正規化（@ がなくても付ける）
     const normalized = basicId.startsWith('@') ? basicId : `@${basicId}`
-    const addFriendUrl = `https://line.me/R/ti/p/${encodeURIComponent(normalized)}`
+    // Android版LINEは @ を %40 にエンコードしたURLをディープリンクとして認識しないため、
+    // encodeURIComponent は使わずそのまま @ を残す
+    const addFriendUrl = `https://line.me/R/ti/p/${normalized}`
 
     return NextResponse.json({ addFriendUrl, basicId: normalized })
   } catch (e) {

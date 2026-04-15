@@ -29,7 +29,7 @@ const groupPrefixes: Record<string, string> = {
   '/admin/labor-management/announcements': '/admin/labor-management',
   '/admin/store-settings/stores': '/admin/store-settings',
   '/admin/marketing/campaigns': '/admin/marketing',
-  '/admin/settings/line': '/admin/settings',
+  '/admin/settings/chemicals': '/admin/settings',
 }
 
 const allNav = [
@@ -47,7 +47,7 @@ const allNav = [
   { href: '/admin/labor-management/announcements', label: '労務管理', icon: Clock, roles: ['admin'] },
   { href: '/admin/store-settings/stores', label: '店舗・メニュー', icon: Building2, roles: ['admin'] },
   { href: '/admin/marketing/campaigns', label: '集客', icon: Megaphone, roles: ['admin'] },
-  { href: '/admin/settings/line', label: '設定', icon: Settings, roles: ['admin'] },
+  { href: '/admin/settings/chemicals', label: '設定', icon: Settings, roles: ['admin'] },
 ]
 
 interface HeaderProps {

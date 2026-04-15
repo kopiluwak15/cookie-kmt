@@ -36,7 +36,7 @@ const adminNav = [
   { href: '/admin/labor-management/announcements', label: '労務管理', icon: Clock },
   { href: '/admin/store-settings/stores', label: '店舗・メニュー', icon: Building2 },
   { href: '/admin/marketing/campaigns', label: '集客', icon: Megaphone },
-  { href: '/admin/settings/line', label: '設定', icon: Settings },
+  { href: '/admin/settings/chemicals', label: '設定', icon: Settings },
 ]
 
 // グループのプレフィックス（アクティブ判定用）
@@ -45,7 +45,7 @@ const adminGroupPrefixes: Record<string, string> = {
   '/admin/labor-management/announcements': '/admin/labor-management',
   '/admin/store-settings/stores': '/admin/store-settings',
   '/admin/marketing/campaigns': '/admin/marketing',
-  '/admin/settings/line': '/admin/settings',
+  '/admin/settings/chemicals': '/admin/settings',
 }
 
 interface SidebarProps {

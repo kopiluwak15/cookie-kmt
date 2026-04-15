@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.8;
+    color: #1a1a1a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ===== Cover Page ===== */
+  .cover {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(160deg, #fffbeb 0%, #fef3c7 40%, #fde68a 100%);
+    page-break-after: always;
+    text-align: center;
+    padding: 60px;
+  }
+  .cover-logo {
+    font-size: 14pt;
+    letter-spacing: 6px;
+    color: #92400e;
+    margin-bottom: 40px;
+    font-weight: 300;
+  }
+  .cover-title {
+    font-size: 28pt;
+    font-weight: 900;
+    color: #78350f;
+    margin-bottom: 12px;
+    letter-spacing: 2px;
+  }
+  .cover-subtitle {
+    font-size: 14pt;
+    color: #92400e;
+    font-weight: 400;
+    margin-bottom: 60px;
+  }
+  .cover-line {
+    width: 80px;
+    height: 3px;
+    background: #d97706;
+    margin-bottom: 60px;
+  }
+  .cover-meta {
+    font-size: 10pt;
+    color: #a16207;
+    line-height: 2.2;
+  }
+  .cover-meta strong {
+    font-weight: 600;
+  }
+
+  /* ===== TOC Page ===== */
+  .toc-page {
+    page-break-after: always;
+    padding: 0;
+  }
+  .toc-page h2 {
+    font-size: 18pt;
+    color: #78350f;
+    border-bottom: 3px solid #d97706;
+    padding-bottom: 10px;
+    margin-bottom: 28px;
+    letter-spacing: 4px;
+  }
+  .toc-chapter {
+    display: flex;
+    align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px dotted #d4d4d4;
+    font-size: 11pt;
+    color: #1a1a1a;
+  }
+  .toc-chapter.main {
+    font-weight: 700;
+    font-size: 11.5pt;
+    padding-top: 14px;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  .toc-chapter .num {
+    color: #d97706;
+    font-weight: 700;
+    min-width: 40px;
+  }
+  .toc-chapter .title { flex: 1; }
+  .toc-sub {
+    display: flex;
+    align-items: baseline;
+    padding: 4px 0 4px 40px;
+    font-size: 10pt;
+    color: #525252;
+  }
+  .toc-sub .num {
+    color: #a16207;
+    min-width: 50px;
+    font-weight: 500;
+  }
+
+  /* ===== Chapter Pages ===== */
+  .chapter {
+    page-break-before: always;
+  }
+
+  .chapter-header {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    padding: 30px 0;
+    margin-bottom: 24px;
+    border-bottom: 3px solid #d97706;
+  }
+  .chapter-num {
+    font-size: 12pt;
+    color: #d97706;
+    font-weight: 700;
+    letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+  .chapter-title {
+    font-size: 20pt;
+    color: #78350f;
+    font-weight: 900;
+    letter-spacing: 1px;
+  }
+
+  /* ===== Section headers ===== */
+  h3 {
+    font-size: 13pt;
+    color: #92400e;
+    border-left: 4px solid #f59e0b;
+    padding-left: 12px;
+    margin: 28px 0 12px 0;
+    page-break-after: avoid;
+  }
+  h4 {
+    font-size: 11pt;
+    color: #78350f;
+    margin: 20px 0 8px 0;
+    font-weight: 700;
+    page-break-after: avoid;
+  }
+
+  /* ===== Content ===== */
+  p {
+    margin: 8px 0;
+    text-align: justify;
+  }
+  strong { color: #78350f; }
+
+  ul, ol {
+    padding-left: 24px;
+    margin: 8px 0;
+  }
+  li { margin-bottom: 4px; }
+
+  /* ===== Tables ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  th {
+    background-color: #fef3c7;
+    border: 1px solid #d4d4d4;
+    padding: 7px 10px;
+    text-align: left;
+    font-weight: 700;
+    color: #78350f;
+    white-space: nowrap;
+  }
+  td {
+    border: 1px solid #d4d4d4;
+    padding: 6px 10px;
+    vertical-align: top;
+  }
+  tr:nth-child(even) { background-color: #fafaf9; }
+
+  /* ===== Callout boxes ===== */
+  .callout {
+    border-left: 4px solid #f59e0b;
+    background-color: #fffbeb;
+    padding: 10px 16px;
+    margin: 12px 0;
+    font-size: 10pt;
+    border-radius: 0 4px 4px 0;
+  }
+  .callout.warn {
+    border-left-color: #ef4444;
+    background-color: #fef2f2;
+  }
+  .callout strong {
+    color: #d97706;
+  }
+  .callout.warn strong {
+    color: #dc2626;
+  }
+
+  /* ===== Code/URL ===== */
+  code {
+    background-color: #f5f5f4;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 9pt;
+    font-family: "SF Mono", Menlo, monospace;
+    color: #92400e;
+  }
+
+  /* ===== Step boxes ===== */
+  .step-box {
+    background: #f5f5f4;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 10px 0;
+    page-break-inside: avoid;
+  }
+  .step-box .step-title {
+    font-weight: 700;
+    color: #d97706;
+    font-size: 10.5pt;
+    margin-bottom: 6px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 8.5pt;
+    font-weight: 600;
+  }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-gray { background: #f3f4f6; color: #6b7280; }
+  .badge-red { background: #fee2e2; color: #dc2626; }
+
+  /* Colophon */
+  .colophon {
+    page-break-before: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 85vh;
+    text-align: center;
+    font-size: 9pt;
+    color: #a1a1aa;
+    line-height: 2;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================== -->
+<!-- COVER PAGE -->
+<!-- ============================================== -->
+<div class="cover">
+  <div class="cover-logo">C O O K I E&ensp;&ensp;熊 本</div>
+  <div class="cover-title">顧客管理システム</div>
+  <div class="cover-subtitle">取扱説明書</div>
+  <div class="cover-line"></div>
+  <div class="cover-meta">
+    <strong>システム名</strong>：cookie-kmt<br>
+    <strong>URL</strong>：https://kmt.cookie.hair<br>
+    <strong>対象</strong>：管理者・スタッフ<br>
+    <strong>バージョン</strong>：2026年4月13日版
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- TABLE OF CONTENTS -->
+<!-- ============================================== -->
+<div class="toc-page">
+  <h2>目　次</h2>
+
+  <div class="toc-chapter main"><span class="num">1</span><span class="title">システム概要</span></div>
+
+  <div class="toc-chapter main"><span class="num">2</span><span class="title">ログイン・認証</span></div>
+
+  <div class="toc-chapter main"><span class="num">3</span><span class="title">スタッフ機能</span></div>
+  <div class="toc-sub"><span class="num">3-1</span>施術ログ</div>
+  <div class="toc-sub"><span class="num">3-2</span>カウンセリング</div>
+  <div class="toc-sub"><span class="num">3-3</span>店舗売上</div>
+  <div class="toc-sub"><span class="num">3-4</span>マイ実績</div>
+  <div class="toc-sub"><span class="num">3-5</span>マイページ</div>
+  <div class="toc-sub"><span class="num">3-6</span>出退勤（タイムカード）</div>
+
+  <div class="toc-chapter main"><span class="num">4</span><span class="title">管理者機能</span></div>
+  <div class="toc-sub"><span class="num">4-1</span>ダッシュボード</div>
+  <div class="toc-sub"><span class="num">4-2</span>顧客管理</div>
+  <div class="toc-sub"><span class="num">4-3</span>売上・分析</div>
+  <div class="toc-sub"><span class="num">4-4</span>スタッフ管理</div>
+  <div class="toc-sub"><span class="num">4-5</span>労務管理</div>
+  <div class="toc-sub"><span class="num">4-6</span>店舗・メニュー設定</div>
+  <div class="toc-sub"><span class="num">4-7</span>集客（マーケティング）</div>
+  <div class="toc-sub"><span class="num">4-8</span>設定</div>
+
+  <div class="toc-chapter main"><span class="num">5</span><span class="title">顧客向け機能（LINE経由）</span></div>
+  <div class="toc-sub"><span class="num">5-1</span>初回来店（QR → カルテ登録）</div>
+  <div class="toc-sub"><span class="num">5-2</span>2回目以降の来店（チェックイン）</div>
+  <div class="toc-sub"><span class="num">5-3</span>コンセプトアンケート</div>
+  <div class="toc-sub"><span class="num">5-4</span>アンケート・ルーレット</div>
+
+  <div class="toc-chapter main"><span class="num">6</span><span class="title">カルテ閲覧（iPad + QR認証）</span></div>
+
+  <div class="toc-chapter main"><span class="num">7</span><span class="title">LINE自動配信</span></div>
+
+  <div class="toc-chapter main"><span class="num">8</span><span class="title">自動バッチ処理（Cron）</span></div>
+
+  <div class="toc-chapter main"><span class="num">9</span><span class="title">補足・運用Tips</span></div>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 1: システム概要 -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 1</div>
+    <div class="chapter-title">システム概要</div>
+  </div>
+
+  <p>縮毛矯正・髪質改善専門サロン「COOKIE 熊本」の業務管理システムです。</p>
+
+  <div class="callout">
+    <strong>システムの目的</strong><br>
+    「悩み → 施術 → 再来店」の再現性を可視化し、スタッフの努力の方向性を見える化する。
+  </div>
+
+  <h3>できること</h3>
+  <ul>
+    <li>顧客カルテ管理（来店履歴・施術記録・悩み・ケース記録）</li>
+    <li>LINE連携による自動リマインド配信（サンキュー・リマインド・休眠・メンテナンス）</li>
+    <li>スタッフの施術ログ記録・実績管理・報酬計算</li>
+    <li>出退勤管理（GPS位置確認付き）</li>
+    <li>売上分析・リピート率分析</li>
+    <li>店舗iPadでの顧客カルテ閲覧（QR + LINE認証 + GPS制限）</li>
+  </ul>
+
+  <h3>対応デバイス</h3>
+  <table>
+    <tr><th>デバイス</th><th>用途</th></tr>
+    <tr><td>PC</td><td>管理者向け（ダッシュボード・各種設定）</td></tr>
+    <tr><td>タブレット（iPad）</td><td>店舗設置用（カルテ閲覧・チェックイン）</td></tr>
+    <tr><td>スマートフォン</td><td>LINE内ブラウザ経由（顧客チェックイン・スタッフ出退勤）</td></tr>
+  </table>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 2: ログイン・認証 -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 2</div>
+    <div class="chapter-title">ログイン・認証</div>
+  </div>
+
+  <h3>ログイン方法</h3>
+  <ol>
+    <li><code>https://kmt.cookie.hair</code> にアクセス</li>
+    <li>メールアドレスとパスワードを入力</li>
+    <li>「ログイン」をクリック</li>
+  </ol>
+  <table>
+    <tr><th>役割</th><th>ログイン後の遷移先</th></tr>
+    <tr><td>管理者（admin）</td><td>ダッシュボード</td></tr>
+    <tr><td>スタッフ（staff）</td><td>マイ実績ページ</td></tr>
+  </table>
+
+  <h3>初回ログイン時</h3>
+  <p>管理者が登録した仮パスワードでログインすると、パスワード変更画面が表示されます。新しいパスワードを設定してください。</p>
+
+  <h3>LINE連携（スタッフ）</h3>
+  <p>マイページから「LINE連携」ボタンでLINEアカウントと紐づけできます。連携すると出退勤のLIFF（LINE内ブラウザ）機能が使えるようになります。</p>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 3: スタッフ機能 -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 3</div>
+    <div class="chapter-title">スタッフ機能</div>
+  </div>
+  <p>左のサイドバーから各機能にアクセスできます。</p>
+
+  <!-- 3-1 -->
+  <h3>3-1. 施術ログ <code>/staff/visit-log</code></h3>
+  <p>施術後に入力する記録フォームです。</p>
+  <h4>入力項目</h4>
+  <table>
+    <tr><th>項目</th><th>説明</th></tr>
+    <tr><td>担当スタッフ</td><td>ログイン中のスタッフ名が自動設定</td></tr>
+    <tr><td>スタイルカテゴリ</td><td>ツーブロック・マッシュ等から選択</td></tr>
+    <tr><td>サービスメニュー</td><td>カット・カラー・ヘッドスパ等から選択</td></tr>
+    <tr><td>価格</td><td>施術金額を入力</td></tr>
+    <tr><td>使用薬剤</td><td>4カテゴリ（ストレート・カラー・パーマ・トリートメント）から選択</td></tr>
+  </table>
+  <div class="callout">
+    <strong>ポイント</strong>：薬剤の選択肢は管理者が「設定 → 薬剤プリセット」から追加・削除できます。
+  </div>
+  <h4>操作手順</h4>
+  <ol>
+    <li>本日チェックイン済みの顧客を選択</li>
+    <li>各項目を入力</li>
+    <li>「保存」で記録完了</li>
+  </ol>
+
+  <!-- 3-2 -->
+  <h3>3-2. カウンセリング <code>/staff/counseling</code></h3>
+  <p>本日チェックイン済みの顧客を管理する画面です。</p>
+  <table>
+    <tr><th>タブ</th><th>内容</th></tr>
+    <tr><td>カルテ未確認</td><td>チェックインしたがカルテ（初回アンケート）をまだ確認していない顧客。「アンケート再送」ボタンで再送信可能。</td></tr>
+    <tr><td>カルテ確認済み</td><td>カルテを閲覧済みの顧客一覧</td></tr>
+  </table>
+
+  <!-- 3-3 -->
+  <h3>3-3. 店舗売上 <code>/staff/store-sales</code></h3>
+  <p>全スタッフの店舗合計売上を閲覧できます（閲覧のみ、編集不可）。</p>
+  <ul>
+    <li>今月のKPI 4項目（売上・客数・客単価・平均施術時間）</li>
+    <li>スタッフ別実績テーブル（当月）</li>
+    <li>月別実績テーブル（過去12ヶ月）</li>
+  </ul>
+
+  <!-- 3-4 -->
+  <h3>3-4. マイ実績 <code>/staff/performance</code></h3>
+  <p>自分の施術実績と報酬予測を確認できます。</p>
+  <h4>KPI表示</h4>
+  <table>
+    <tr><th>項目</th><th>説明</th></tr>
+    <tr><td>売上（税込/税抜）</td><td>当月の施術売上合計</td></tr>
+    <tr><td>客数</td><td>当月の担当客数</td></tr>
+    <tr><td>客単価</td><td>売上 ÷ 客数</td></tr>
+    <tr><td>平均施術時間</td><td>1施術あたりの平均所要時間</td></tr>
+    <tr><td>平均60分基準タイム</td><td>施術時間を予定所要時間で正規化した効率指標</td></tr>
+  </table>
+  <h4>報酬予測（雇用形態別）</h4>
+  <table>
+    <tr><th>雇用形態</th><th>表示内容</th></tr>
+    <tr><td>業務委託</td><td>税抜売上 × 歩合率 → 源泉徴収（10.21%）控除後の手取り予測</td></tr>
+    <tr><td>正社員 S1〜S3</td><td>基本給 + 次ステージ昇格条件のプログレスバー</td></tr>
+    <tr><td>正社員 S4</td><td>基本給 + 月売上60万超過分×10%のインセンティブ（2ヶ月連続条件）</td></tr>
+    <tr><td>正社員 S5・S6</td><td>基本給（S5は役職手当込み）</td></tr>
+    <tr><td>パート</td><td>時給・施術数・売上</td></tr>
+  </table>
+  <p><strong>月別実績テーブル</strong>：過去12ヶ月分。各月をクリックすると来店一覧（顧客名・メニュー・スタイル・価格）を展開表示。</p>
+
+  <!-- 3-5 -->
+  <h3>3-5. マイページ <code>/staff/mypage</code></h3>
+  <p>個人プロフィールの確認ページです。氏名・メール・雇用形態・ステージ・報酬情報を表示します。</p>
+  <h4>業務委託スタッフのみ追加表示</h4>
+  <ul>
+    <li>業務委託契約書（署名状況の確認）</li>
+    <li>ルールブック同意書（同意状況の確認）</li>
+    <li>美容師免許（画像アップロード機能）</li>
+  </ul>
+
+  <!-- 3-6 -->
+  <h3>3-6. 出退勤（タイムカード）</h3>
+  <p>LINEのリッチメニューから出退勤を記録します。</p>
+
+  <div class="step-box">
+    <div class="step-title">出勤の流れ</div>
+    <ol>
+      <li>LINEのリッチメニューから「出勤」をタップ</li>
+      <li>LIFF（LINE内ブラウザ）が開く</li>
+      <li>GPS位置確認（店舗の許容半径内かチェック）</li>
+      <li>範囲内であれば出勤打刻完了</li>
+    </ol>
+  </div>
+  <div class="step-box">
+    <div class="step-title">退勤の流れ</div>
+    <p>出勤と同様。退勤時にチェックリスト（清掃・戸締まり等）の確認画面が表示される場合があります。</p>
+  </div>
+
+  <div class="callout warn">
+    <strong>GPS範囲外の場合</strong>：「店舗内でのみ使用できます」というエラーが表示され、打刻できません。
+  </div>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 4: 管理者機能 -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 4</div>
+    <div class="chapter-title">管理者機能</div>
+  </div>
+  <p>管理者（admin）でログインすると、左サイドバーに追加の管理メニューが表示されます。</p>
+
+  <!-- 4-1 -->
+  <h3>4-1. ダッシュボード <code>/admin/dashboard</code></h3>
+  <p>店舗の経営状況を一覧で確認できます。</p>
+  <p><strong>期間フィルター</strong>：直近30日・今月・先月・3ヶ月・1年、または日付手動指定</p>
+  <h4>KPI（上段 4項目）</h4>
+  <ul>
+    <li>総顧客数</li>
+    <li>LINE連携数</li>
+    <li>来店数</li>
+    <li>売上</li>
+  </ul>
+  <h4>KPI（下段 4項目）</h4>
+  <ul>
+    <li>新規顧客数</li>
+    <li>平均施術時間</li>
+    <li>休眠顧客数（90日以上未来店 ── 橙色で警告）</li>
+    <li>失客予備軍（60〜90日未来店 ── 赤色で警告）</li>
+  </ul>
+  <h4>チャート・テーブル</h4>
+  <ul>
+    <li>来店動機チャート（円グラフ / 棒グラフ）</li>
+    <li>スタイル別来店数テーブル</li>
+    <li>LINE配信状況テーブル（サンキュー・リマインド①②・休眠の送信数と成功率）</li>
+  </ul>
+
+  <!-- 4-2 -->
+  <h3>4-2. 顧客管理 <code>/admin/customers</code></h3>
+  <h4>顧客一覧</h4>
+  <p>顧客ID・氏名・電話番号・来店回数・最終来店日・LINE連携状況を表示。リアルタイム検索（名前・ID・電話番号で絞り込み）対応。</p>
+
+  <h4>LINE状況バッジ</h4>
+  <table>
+    <tr><th>バッジ</th><th>意味</th></tr>
+    <tr><td><span class="badge badge-green">連携済</span></td><td>LINE連携済み、配信可能</td></tr>
+    <tr><td><span class="badge badge-gray">未連携</span></td><td>LINE未連携</td></tr>
+    <tr><td><span class="badge badge-red">ブロック</span></td><td>LINEブロック済み、配信不可</td></tr>
+  </table>
+
+  <h4>顧客手動追加</h4>
+  <p>「＋顧客追加」ボタンから追加。名前（必須）・電話番号・来店経路を入力。LINE未登録の顧客を本日チェックイン済みとして登録できます。</p>
+
+  <h4>顧客詳細ページ</h4>
+  <p>顧客IDをクリックすると詳細ページに遷移。以下のタブで構成：</p>
+  <table>
+    <tr><th>タブ</th><th>内容</th></tr>
+    <tr><td>来店履歴</td><td>日付・担当・メニュー・スタイル・価格の一覧</td></tr>
+    <tr><td>カルテ</td><td>初回アンケート回答内容の閲覧</td></tr>
+    <tr><td>ケース記録</td><td>施術ごとの悩み・施術内容・薬剤・AI要約</td></tr>
+    <tr><td>LINE送信履歴</td><td>サンキュー・リマインド等の送信ログ</td></tr>
+  </table>
+
+  <!-- 4-3 -->
+  <h3>4-3. 売上・分析</h3>
+  <table>
+    <tr><th>ページ</th><th>内容</th></tr>
+    <tr><td>売上分析</td><td>スタッフ別・日別・月別の売上集計。期間・スタッフ絞り込み可</td></tr>
+    <tr><td>リピート分析</td><td>リピート率・再来店率の推移</td></tr>
+    <tr><td>ケース分析</td><td>施術ケース（薬剤・技術）の統計</td></tr>
+    <tr><td>来店履歴</td><td>全来店履歴の一覧表示</td></tr>
+  </table>
+
+  <!-- 4-4 -->
+  <h3>4-4. スタッフ管理 <code>/admin/staff</code></h3>
+  <p>スタッフ一覧テーブル（氏名・メール・役割・グレード・雇用形態・所属店舗・状態）を表示。</p>
+  <table>
+    <tr><th>操作</th><th>説明</th></tr>
+    <tr><td>新規登録</td><td>名前・メール・パスワード・役割・グレード（S1〜S6 / アルバイト / 業務委託）・所属店舗・基本給/時給/歩合率を設定</td></tr>
+    <tr><td>編集</td><td>既存スタッフの情報を変更</td></tr>
+    <tr><td>有効/無効切替</td><td>退職・休職時にアカウントを無効化</td></tr>
+    <tr><td>削除</td><td>パスワード確認の上、スタッフを削除</td></tr>
+  </table>
+  <p><strong>業務委託スタッフ</strong>：美容師免許画像のプレビュー確認が可能。</p>
+
+  <!-- 4-5 -->
+  <h3>4-5. 労務管理</h3>
+
+  <h4>お知らせ送信 <code>/admin/labor-management/announcements</code></h4>
+  <p>LINEでスタッフに一斉通知を送信します。</p>
+  <table>
+    <tr><th>設定項目</th><th>内容</th></tr>
+    <tr><td>重要度</td><td>重要・確認・指示・お知らせ・その他</td></tr>
+    <tr><td>タイトル・本文</td><td>通知内容</td></tr>
+    <tr><td>配信タイミング</td><td>「チェックイン時に表示」または「即時送信」</td></tr>
+    <tr><td>受信スタッフ</td><td>チェックボックスで個別選択</td></tr>
+  </table>
+  <p>テンプレート保存・呼び出し機能あり。送信済み一覧で未確認スタッフを把握可能。</p>
+
+  <h4>タイムカード <code>/admin/labor-management/timecard</code></h4>
+  <ul>
+    <li>スタッフ別・月別の打刻記録を確認（出勤/退勤時刻・GPS検証状況）</li>
+    <li>管理者による打刻時刻の手動編集・削除（パスワード確認あり）</li>
+    <li>CSV出力（施術ログ含む/含まないのオプション）</li>
+    <li>GPS機能のON/OFF切替スイッチ</li>
+  </ul>
+
+  <h4>チェックリスト <code>/admin/labor-management/checklist</code></h4>
+  <p>開店・閉店チェックリストの管理画面です。</p>
+
+  <!-- 4-6 -->
+  <h3>4-6. 店舗・メニュー設定</h3>
+
+  <h4>店舗設定 <code>/admin/store-settings/stores</code></h4>
+  <ul>
+    <li>店舗情報（名称・住所）の編集</li>
+    <li>GPS座標（緯度・経度）の設定</li>
+    <li>GPS許容半径（メートル）の設定 ── タイムカード・カルテ閲覧のGPS判定に使用</li>
+  </ul>
+
+  <h4>スタイル設定 <code>/admin/store-settings/styles</code></h4>
+  <table>
+    <tr><th>設定項目</th><th>説明</th></tr>
+    <tr><td>スタイル名</td><td>カテゴリ名（ツーブロック、マッシュ等）</td></tr>
+    <tr><td>来店サイクル日数</td><td>標準的な再来店間隔</td></tr>
+    <tr><td>リマインダー①日数</td><td>来店後○日後にリマインドLINE送信</td></tr>
+    <tr><td>リマインダー②日数</td><td>来店後○日後に2回目のリマインドLINE送信</td></tr>
+    <tr><td>性別</td><td>対象性別</td></tr>
+    <tr><td>表示順</td><td>一覧での並び順</td></tr>
+  </table>
+
+  <h4>メニュー設定 <code>/admin/store-settings/menus</code></h4>
+  <table>
+    <tr><th>設定項目</th><th>説明</th></tr>
+    <tr><td>メニュー名</td><td>サービス名（カット、カラー等）</td></tr>
+    <tr><td>カテゴリ</td><td>分類</td></tr>
+    <tr><td>推定所要時間</td><td>分単位</td></tr>
+    <tr><td>定価</td><td>税込価格</td></tr>
+    <tr><td>コンセプトメニュー</td><td>ONにするとコンセプトアンケートに表示</td></tr>
+  </table>
+
+  <!-- 4-7 -->
+  <h3>4-7. 集客（マーケティング）</h3>
+  <table>
+    <tr><th>ページ</th><th>内容</th></tr>
+    <tr><td>キャンペーン</td><td>LINEキャンペーン配信の管理</td></tr>
+    <tr><td>クーポン</td><td>クーポンの作成・管理</td></tr>
+    <tr><td>QRコード</td><td>来店用QRコードの生成・管理</td></tr>
+  </table>
+
+  <!-- 4-8 -->
+  <h3>4-8. 設定</h3>
+
+  <h4>LINE配信設定 <code>/admin/settings/line</code></h4>
+  <p><strong>共通設定：</strong></p>
+  <table>
+    <tr><th>項目</th><th>説明</th></tr>
+    <tr><td>予約URL</td><td>LINE配信テンプレート内の予約リンク</td></tr>
+    <tr><td>公式LINE ベーシックID</td><td>友だち追加リンク用</td></tr>
+    <tr><td>休眠顧客しきい値</td><td>○日以上未来店で休眠扱い（デフォルト90日）</td></tr>
+    <tr><td>平日空き案内テキスト</td><td>配信テンプレートに埋め込む空き案内</td></tr>
+    <tr><td>メンテナンスチケット①②</td><td>送信タイミング（来店後○日）と有効期限</td></tr>
+    <tr><td>ルーレット当選確率</td><td>アンケート後ルーレットの当選率（%）</td></tr>
+  </table>
+
+  <p><strong>テンプレート設定（タブ切替）：</strong></p>
+  <table>
+    <tr><th>テンプレート</th><th>用途</th><th>使える変数</th></tr>
+    <tr><td>サンキューLINE</td><td>来店後のお礼</td><td><code>{{customer_name}}</code>, <code>{{style_name}}</code>, <code>{{booking_url}}</code></td></tr>
+    <tr><td>リマインド①</td><td>1回目のリマインド</td><td>上記 + <code>{{cycle_days}}</code></td></tr>
+    <tr><td>リマインド②</td><td>2回目（クーポン付）</td><td>上記 + <code>{{coupon_text}}</code></td></tr>
+    <tr><td>休眠顧客LINE</td><td>長期未来店者向け</td><td><code>{{customer_name}}</code>, <code>{{booking_url}}</code></td></tr>
+    <tr><td>メンテナンス①②</td><td>メンテチケット通知</td><td><code>{{customer_name}}</code></td></tr>
+  </table>
+
+  <h4>雇用形態 <code>/admin/settings/employment</code></h4>
+  <div class="callout">
+    <strong>パスワード保護</strong>：このページは閲覧パスワードが必要です（デフォルト: <code>cookie2024</code>）。
+  </div>
+
+  <p><strong>S：正社員雇用（S1〜S6）</strong></p>
+  <table>
+    <tr><th>ステージ</th><th>基本給</th><th>特徴</th></tr>
+    <tr><td>S1（入社〜6ヶ月）</td><td>190,000円</td><td>試用期間</td></tr>
+    <tr><td>S2（6ヶ月〜）</td><td>200,000円</td><td></td></tr>
+    <tr><td>S3（1年〜）</td><td>210,000円</td><td></td></tr>
+    <tr><td>S4（スタイリスト）</td><td>220,000円</td><td>月売上60万超過分×10%インセンティブ</td></tr>
+    <tr><td>S5（店長/MG）</td><td>240,000円</td><td>役職手当込み</td></tr>
+    <tr><td>S6（エリアMG）</td><td>別途設定</td><td></td></tr>
+  </table>
+
+  <p><strong>A：業務委託A（シフト制）</strong>：土日出勤/片方/平日のみで歩合率が変動（40〜45%スタート）。スピード・クオリティ・接客の3軸で評価。</p>
+  <p><strong>B：業務委託B（自由出勤）</strong>：土日45%/平日40%。月次査定で歩合率が変動。</p>
+
+  <p><strong>本店給与テーブル</strong></p>
+  <table>
+    <tr><th>ランク</th><th>基本給</th><th>歩合</th></tr>
+    <tr><td>アシスタント</td><td>180,000円</td><td>なし</td></tr>
+    <tr><td>JRスタイリスト</td><td>190,000円</td><td>なし</td></tr>
+    <tr><td>スタイリスト</td><td>200,000円</td><td>税抜売上の1%</td></tr>
+    <tr><td>トップスタイリスト</td><td>210,000円</td><td>税抜40万以上の売上の10%</td></tr>
+    <tr><td>店長/MG</td><td>220,000円</td><td>税抜総売上の1% + 指名売上40万超の5%</td></tr>
+  </table>
+
+  <p><strong>P：時短社員（日当制）</strong>：日当8,000円、交通費上限5,000円/月。</p>
+
+  <h4>薬剤プリセット <code>/admin/settings/chemicals</code></h4>
+  <p>施術ログで使う薬剤名を4カテゴリ（ストレート・カラー・パーマ・トリートメント）で管理します。</p>
+  <table>
+    <tr><th>操作</th><th>方法</th></tr>
+    <tr><td>追加</td><td>テキスト欄に薬剤名を入力 → 「追加」ボタンまたはEnterキー</td></tr>
+    <tr><td>無効化</td><td>ゴミ箱アイコンで論理削除（施術ログの選択肢から消える）</td></tr>
+    <tr><td>復元</td><td>無効化した薬剤を復元可能</td></tr>
+  </table>
+
+  <h4>システム設定 <code>/admin/settings/system</code></h4>
+  <ul>
+    <li>雇用形態ページの閲覧パスワードを変更できます</li>
+    <li>編集・削除時の確認パスワードはログインパスワードと同一です</li>
+  </ul>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 5: 顧客向け機能 -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 5</div>
+    <div class="chapter-title">顧客向け機能（LINE経由）</div>
+  </div>
+  <p>顧客はLINEからQRコードを読み取ることでシステムを利用します。</p>
+
+  <!-- 5-1 -->
+  <h3>5-1. 初回来店（QR → カルテ登録）</h3>
+  <div class="step-box">
+    <div class="step-title">初回チェックインの流れ</div>
+    <ol>
+      <li>店舗のQRコードをLINEで読み取る</li>
+      <li>LINE認証が行われる</li>
+      <li>公式LINE友だち追加の確認画面（未追加の場合）</li>
+      <li>初回の場合、カルテ登録フォームに遷移</li>
+    </ol>
+  </div>
+  <h4>カルテ登録フォームの入力項目</h4>
+  <ul>
+    <li>来店経路（ホットペッパー・紹介・Instagram・看板・Google・その他）</li>
+    <li>職業</li>
+    <li>住所（熊本市各区〜熊本県外の選択）</li>
+    <li>髪の悩み（複数選択可）</li>
+    <li>サロン選択の理由</li>
+    <li>過去の施術履歴（黒染め・ブリーチ・縮毛矯正等）</li>
+    <li>店内での過ごし方の希望</li>
+    <li>嫌いな接客スタイル</li>
+  </ul>
+
+  <!-- 5-2 -->
+  <h3>5-2. 2回目以降の来店（チェックイン）</h3>
+  <div class="step-box">
+    <div class="step-title">チェックインの流れ</div>
+    <ol>
+      <li>店舗のQRコードをLINEで読み取る</li>
+      <li>LINE認証 → チェックイン完了画面が表示</li>
+      <li>「Check IN ありがとうございます」メッセージ表示</li>
+      <li>「閉じる」ボタンでLINE画面に戻る</li>
+    </ol>
+  </div>
+
+  <!-- 5-3 -->
+  <h3>5-3. コンセプトアンケート</h3>
+  <p>コンセプトメニュー（管理者がメニュー設定で「コンセプトメニュー」をONにしたメニュー）の施術前に、顧客に追加アンケートを実施します。カウンセリングフォームとして機能します。</p>
+
+  <!-- 5-4 -->
+  <h3>5-4. アンケート・ルーレット</h3>
+  <p>来店後にLINEで送信されるアンケートリンクから回答。回答後にルーレット画面が表示され、当選確率（管理者設定）に基づいて景品が当たります。</p>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 6: カルテ閲覧 -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 6</div>
+    <div class="chapter-title">カルテ閲覧（iPad + QR認証）</div>
+  </div>
+  <p>スタッフが施術中に顧客カルテを閲覧するための機能です。</p>
+
+  <div class="callout">
+    <strong>アクセスURL</strong>：<code>https://kmt.cookie.hair/karte-qr</code><br>
+    ログイン不要。iPadのブラウザで直接アクセスできます。
+  </div>
+
+  <h3>利用手順</h3>
+
+  <div class="step-box">
+    <div class="step-title">Step 1：QR表示（iPad側）</div>
+    <ol>
+      <li>iPadで <code>/karte-qr</code> にアクセス</li>
+      <li>QRコードが画面に表示される</li>
+      <li>「認証待ち…」のスピナーが表示される</li>
+    </ol>
+  </div>
+
+  <div class="step-box">
+    <div class="step-title">Step 2：LINE認証（スタッフのスマホ側）</div>
+    <ol>
+      <li>スタッフが自分のスマートフォンのLINEでQRを読み取る</li>
+      <li>LINE認証が自動実行される</li>
+      <li>スタッフアカウントの確認</li>
+      <li>GPS位置確認（店舗の許容半径内か）</li>
+      <li>「認証完了」画面が表示 → スマホ側は自動で閉じる</li>
+    </ol>
+  </div>
+
+  <div class="step-box">
+    <div class="step-title">Step 3：カルテ閲覧（iPad側が自動切替）</div>
+    <ol>
+      <li>iPad側が自動的に顧客検索画面に切り替わる</li>
+      <li>名前・フリガナ・顧客コードで顧客を検索</li>
+      <li>顧客をタップすると、カルテ詳細が表示される</li>
+    </ol>
+  </div>
+
+  <h3>閲覧できる情報</h3>
+  <p>基本情報・来店履歴・カルテ（アンケート回答）・ケース記録・LINE送信履歴</p>
+
+  <div class="callout warn">
+    <strong>注意</strong>：閲覧専用です。編集・削除はできません。
+  </div>
+
+  <h3>補足</h3>
+  <table>
+    <tr><th>項目</th><th>内容</th></tr>
+    <tr><td>QRの有効期限</td><td>10分間。期限切れの場合は「QRを更新する」ボタンで再生成。</td></tr>
+    <tr><td>GPS範囲外</td><td>「店舗の範囲外です」と表示され認証不可。</td></tr>
+  </table>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 7: LINE自動配信 -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 7</div>
+    <div class="chapter-title">LINE自動配信</div>
+  </div>
+  <p>以下のLINEメッセージが自動配信されます。すべてのテンプレートは管理者が設定画面から編集できます。</p>
+
+  <table>
+    <tr><th>種類</th><th>タイミング</th><th>内容</th></tr>
+    <tr><td>サンキューLINE</td><td>施術ログ保存時に即時送信</td><td>来店のお礼メッセージ</td></tr>
+    <tr><td>リマインド①</td><td>スタイル設定の「リマインダー①日数」後</td><td>再来店のご案内</td></tr>
+    <tr><td>リマインド②</td><td>スタイル設定の「リマインダー②日数」後</td><td>再来店のご案内（クーポン付き）</td></tr>
+    <tr><td>休眠顧客LINE</td><td>休眠しきい値（デフォルト90日）超過時</td><td>再来店促進メッセージ</td></tr>
+    <tr><td>メンテナンス①</td><td>設定日数後</td><td>メンテナンスチケット通知</td></tr>
+    <tr><td>メンテナンス②</td><td>設定日数後</td><td>メンテナンスチケット通知（2回目）</td></tr>
+  </table>
+
+  <div class="callout">
+    <strong>送信条件</strong>：LINE連携済み かつ ブロックされていない顧客にのみ送信されます。
+  </div>
+
+  <p><strong>送信結果の確認方法</strong>：</p>
+  <ul>
+    <li>ダッシュボードの「LINE配信状況テーブル」</li>
+    <li>顧客詳細の「LINE送信履歴」タブ</li>
+  </ul>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 8: 自動バッチ処理 -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 8</div>
+    <div class="chapter-title">自動バッチ処理（Cron）</div>
+  </div>
+  <p>以下の処理が自動で実行されます（サーバー側で管理、手動操作は不要です）。</p>
+
+  <table>
+    <tr><th>処理</th><th>実行時刻（日本時間）</th><th>内容</th></tr>
+    <tr><td>リマインドLINE送信</td><td>毎日 10:00</td><td>リマインド①②の対象顧客にLINE送信</td></tr>
+    <tr><td>メンテナンスLINE送信</td><td>毎日 11:00</td><td>メンテナンスチケット対象顧客にLINE送信</td></tr>
+    <tr><td>休眠顧客LINE送信</td><td>毎週月曜 10:00</td><td>休眠しきい値を超えた顧客にLINE送信</td></tr>
+    <tr><td>データバックアップ</td><td>毎日 03:00</td><td>データベースのバックアップ</td></tr>
+  </table>
+</div>
+
+<!-- ============================================== -->
+<!-- CHAPTER 9: 補足・運用Tips -->
+<!-- ============================================== -->
+<div class="chapter">
+  <div class="chapter-header">
+    <div class="chapter-num">CHAPTER 9</div>
+    <div class="chapter-title">補足・運用Tips</div>
+  </div>
+
+  <h3>顧客のLINEブロック</h3>
+  <p>顧客がLINE公式アカウントをブロックすると、自動的にシステム上で「ブロック」状態になり、以降のLINE配信がスキップされます。ブロック解除時に自動復帰します。</p>
+
+  <h3>GPS設定のポイント</h3>
+  <ul>
+    <li>店舗設定で緯度・経度・許容半径を正しく設定してください</li>
+    <li>半径は建物のサイズ + 若干の余裕を持たせてください（推奨: 100〜200m）</li>
+    <li>GPS機能自体をOFFにすることもできます（タイムカード設定画面）</li>
+  </ul>
+
+  <h3>AI要約機能</h3>
+  <p>ケース記録にAI要約機能があります。施術の悩み・施術内容を入力すると、AIが要約を自動生成します。</p>
+
+  <h3>パスワードについて</h3>
+  <table>
+    <tr><th>種類</th><th>説明</th></tr>
+    <tr><td>ログインパスワード</td><td>管理者が初回登録時に仮パスワードを設定 → スタッフが初回ログイン時に変更</td></tr>
+    <tr><td>編集・削除確認パスワード</td><td>ログインパスワードと同一</td></tr>
+    <tr><td>雇用形態ページパスワード</td><td>別途設定（システム設定で変更可能）</td></tr>
+  </table>
+
+  <h3>デモモード</h3>
+  <p>Supabase（データベース）が未接続の環境では、すべてのページがデモデータで動作します。実データなしでUIの確認が可能です。</p>
+</div>
+
+<!-- ============================================== -->
+<!-- COLOPHON -->
+<!-- ============================================== -->
+<div class="colophon">
+  <div>
+    <p>COOKIE 熊本 顧客管理システム（cookie-kmt）取扱説明書</p>
+    <p>2026年4月13日 初版発行</p>
+    <p>https://kmt.cookie.hair</p>
+  </div>
+</div>
+
+</body>
+</html>
