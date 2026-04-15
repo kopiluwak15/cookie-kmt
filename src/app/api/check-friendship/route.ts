@@ -31,17 +31,31 @@ export async function POST(req: Request) {
 
     const admin = createAdminClient()
 
-    // 1. DB 上のブロック状態を先に確認
+    // 1a. 未登録ユーザー含め全員対応する blocked_line_users を先に確認
+    const { data: blockedRow } = await admin
+      .from('blocked_line_users')
+      .select('line_user_id')
+      .eq('line_user_id', lineUserId)
+      .maybeSingle()
+
+    const friendAddUrl = await resolveFriendAddUrl(token)
+
+    if (blockedRow) {
+      return NextResponse.json({
+        isFriend: false,
+        isBlocked: true,
+        friendAddUrl,
+      })
+    }
+
+    // 1b. DB 上の customer.line_blocked も念のため確認（冗長な保険）
     const { data: existing } = await admin
       .from('customer')
       .select('id, line_friend_date, line_blocked')
       .eq('line_user_id', lineUserId)
       .maybeSingle()
 
-    const friendAddUrl = await resolveFriendAddUrl(token)
-
     if (existing?.line_blocked) {
-      // ブロック中 → ゲートで解除を促す
       return NextResponse.json({
         isFriend: false,
         isBlocked: true,

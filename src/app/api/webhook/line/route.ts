@@ -32,6 +32,13 @@ export async function POST(request: NextRequest) {
           // 友だち追加イベント
           const lineUserId = event.source.userId
 
+          // ブロック解除時も follow イベントが再度飛ぶため、
+          // blocked_line_users から必ず除去する（未登録ユーザー含む）
+          await supabase
+            .from('blocked_line_users')
+            .delete()
+            .eq('line_user_id', lineUserId)
+
           // 既存の顧客を検索 (line_user_id で)
           const { data: existing } = await supabase
             .from('customer')
@@ -108,10 +115,20 @@ export async function POST(request: NextRequest) {
         case 'unfollow': {
           // ブロック（友だち解除）イベント
           const lineUserId = event.source.userId
+
+          // 顧客テーブルのフラグ更新（登録済みユーザーの場合）
           await supabase
             .from('customer')
             .update({ line_blocked: true })
             .eq('line_user_id', lineUserId)
+
+          // 未登録ユーザーにも対応するため、専用テーブルに永続化
+          await supabase
+            .from('blocked_line_users')
+            .upsert(
+              { line_user_id: lineUserId, blocked_at: new Date().toISOString() },
+              { onConflict: 'line_user_id' }
+            )
           break
         }
       }
