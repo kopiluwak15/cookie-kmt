@@ -269,6 +269,34 @@ export default function MarketingLinePage() {
           <Separator />
 
           <div className="space-y-2">
+            <Label className="text-base font-semibold">公式LINE ベーシックID</Label>
+            <p className="text-xs text-muted-foreground">
+              「@」から始まる公式LINEのベーシックID（例: @cookie_kmt）。
+              チェックインQR初回スキャン時の「友だち追加」ボタンに使用されます。
+              <br />
+              設定しないと Android ユーザーが友だち追加できなくなります。
+            </p>
+            <div className="flex gap-2">
+              <Input
+                defaultValue={getSetting('line_oa_basic_id')}
+                placeholder="@cookie_kmt"
+                id="ml_line_oa_basic_id"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  const el = document.getElementById('ml_line_oa_basic_id') as HTMLInputElement
+                  handleSaveGlobal('line_oa_basic_id', el.value)
+                }}
+              >
+                <Save className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
             <Label className="text-base font-semibold">メンテナンスチケット送信設定</Label>
             <p className="text-xs text-muted-foreground">
               コンセプトメニュー受診者にのみ自動送信されます

@@ -37,6 +37,7 @@ function LiffWelcomeInner() {
   const [profileState, setProfileState] = useState<{ lid: string; dn: string } | null>(null)
   // 公式LINE友だち追加URL（DB global_settings.line_oa_basic_id から取得）
   const [friendAddUrl, setFriendAddUrl] = useState('')
+  const [oaStatus, setOaStatus] = useState<'loading' | 'ready' | 'not_configured' | 'fetch_error'>('loading')
 
   // ID取得後 → カルテ判定 → 外部ブラウザへ引き継ぐ共通処理
   const proceedAfterFriend = useCallback(async (lid: string, dn: string) => {
@@ -109,9 +110,15 @@ function LiffWelcomeInner() {
         try {
           const oaRes = await fetch('/api/public/line-oa', { cache: 'no-store' })
           const oaData = await oaRes.json()
-          if (oaData?.addFriendUrl) setFriendAddUrl(oaData.addFriendUrl)
+          if (oaData?.addFriendUrl) {
+            setFriendAddUrl(oaData.addFriendUrl)
+            setOaStatus('ready')
+          } else {
+            setOaStatus('not_configured')
+          }
         } catch (e) {
           console.error('fetch line-oa failed', e)
+          setOaStatus('fetch_error')
         }
 
         // スタッフ用モードは友だち追加不要
@@ -194,13 +201,14 @@ function LiffWelcomeInner() {
   }, [profileState, proceedAfterFriend])
 
   // 友だち追加ゲート画面
-  // Android版LINE内蔵ブラウザでは <button onClick> の JS 遷移がブロックされる
-  // ケースがあるため、友だち追加は <a href> で HTML ネイティブ遷移にする
-  if (needsFriend) {
-    const friendAddDisabled = !friendAddUrl
+  // Android版LINE内蔵ブラウザでは <button onClick> の JS遷移がブロックされる
+  // ケースがあるため、遷移を伴うアクションはすべて <a href> にする。
+  // また、URLが未設定でも「スキップして続行」できる逃げ道を常に提示する。
+  if (needsFriend && profileState) {
+    const currentHref = typeof window !== 'undefined' ? window.location.href : ''
     return (
       <main
-        className="bg-gradient-to-b from-amber-50 to-white flex items-center justify-center px-6"
+        className="bg-gradient-to-b from-amber-50 to-white flex items-center justify-center px-6 py-6"
         style={{ minHeight: '100dvh' }}
       >
         <div className="max-w-sm w-full bg-white rounded-2xl border border-amber-200 p-8 text-center shadow-sm">
@@ -218,31 +226,39 @@ function LiffWelcomeInner() {
             友だち追加をお願いします。
           </p>
 
-          {friendAddDisabled ? (
-            <div className="w-full py-3.5 rounded-xl bg-gray-200 text-gray-500 text-sm">
+          {/* 友だち追加ボタン（ステータス別） */}
+          {oaStatus === 'loading' && (
+            <div className="w-full py-3.5 rounded-xl bg-gray-100 text-gray-500 text-sm">
               友だち追加URL読み込み中...
-              <br />
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-2 underline text-xs"
-              >
-                読み込み直す
-              </button>
             </div>
-          ) : (
+          )}
+
+          {oaStatus === 'ready' && friendAddUrl && (
             <a
               href={friendAddUrl}
-              className="block w-full py-3.5 rounded-xl bg-[#06C755] text-white font-bold text-base shadow-sm active:brightness-90 transition no-underline"
+              className="block w-full py-3.5 rounded-xl bg-[#06C755] text-white font-bold text-base shadow-sm active:brightness-90 no-underline"
               style={{ textDecoration: 'none' }}
             >
               ＋ 友だち追加する
             </a>
           )}
 
+          {(oaStatus === 'not_configured' || oaStatus === 'fetch_error') && (
+            <div className="w-full py-3 px-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 text-left">
+              <p className="font-semibold mb-1">友だち追加URLが設定されていません</p>
+              <p className="leading-relaxed">
+                店舗スタッフに「公式LINEの基本IDを管理画面で登録してください」とお伝えください。
+                <br />
+                下の「スキップして続行」から先に進むこともできます。
+              </p>
+            </div>
+          )}
+
           <p className="text-xs text-gray-500 mt-4">
             追加したら下のボタンで次へ進んでください
           </p>
 
+          {/* 「追加しました・次へ」は従来どおり friendship 再確認 */}
           <button
             type="button"
             onClick={recheckFriendship}
@@ -252,29 +268,42 @@ function LiffWelcomeInner() {
             {friendChecking ? '確認中...' : '追加しました・次へ'}
           </button>
 
+          {/* スキップリンク: JS が動かない環境でも確実に次に進める `<a href>` 経由 */}
+          <a
+            href={`/liff/welcome/continue?lid=${encodeURIComponent(profileState.lid)}&dn=${encodeURIComponent(profileState.dn)}&mode=${encodeURIComponent(searchParams?.get('mode') || '')}`}
+            className="mt-4 block text-xs text-gray-500 underline"
+          >
+            スキップして続行（友だち追加を後で行う）
+          </a>
+
           {message && (
             <p className="mt-4 text-xs text-amber-700">{message}</p>
           )}
 
-          {/* デバッグ用: URL を直接表示してタップできるように */}
-          {friendAddUrl && (
-            <details className="mt-6 text-left">
-              <summary className="text-xs text-gray-400 cursor-pointer">
-                うまく開かない場合
-              </summary>
-              <div className="mt-2 text-xs text-gray-600 break-all">
-                <a
-                  href={friendAddUrl}
-                  className="text-blue-600 underline"
-                >
-                  {friendAddUrl}
-                </a>
-                <p className="mt-2 text-gray-500">
-                  このリンクを直接タップしても友だち追加画面が開きます。
-                </p>
-              </div>
-            </details>
-          )}
+          {/* 読み込み直し: `<a href>` 経由でページリロードを保証 */}
+          <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col gap-2">
+            {currentHref && (
+              <a
+                href={currentHref}
+                className="text-xs text-gray-400 underline"
+              >
+                ページを読み込み直す
+              </a>
+            )}
+            {/* デバッグ用: URLを直接タップで開く */}
+            {friendAddUrl && (
+              <details className="text-left">
+                <summary className="text-xs text-gray-400 cursor-pointer">
+                  上のボタンで追加画面が開かない場合
+                </summary>
+                <div className="mt-2 text-xs text-gray-600 break-all">
+                  <a href={friendAddUrl} className="text-blue-600 underline">
+                    {friendAddUrl}
+                  </a>
+                </div>
+              </details>
+            )}
+          </div>
         </div>
       </main>
     )

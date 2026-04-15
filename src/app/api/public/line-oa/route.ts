@@ -16,9 +16,10 @@ export async function GET() {
       .eq('key', 'line_oa_basic_id')
       .maybeSingle()
 
-    const basicId = (data?.value || '').trim()
+    // DB に未設定なら環境変数フォールバック（Vercel 環境変数で即時設定可能）
+    const basicId = (data?.value || process.env.LINE_OA_BASIC_ID || '').trim()
     if (!basicId) {
-      return NextResponse.json({ addFriendUrl: null, basicId: null })
+      return NextResponse.json({ addFriendUrl: null, basicId: null, configured: false })
     }
 
     // "@abc123" 形式を正規化（@ がなくても付ける）
