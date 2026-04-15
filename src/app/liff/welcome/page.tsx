@@ -193,33 +193,11 @@ function LiffWelcomeInner() {
     }
   }, [profileState, proceedAfterFriend])
 
-  // 友だち追加画面へ遷移
-  // Android版LINEでは liff.openWindow({ external: false }) が line.me/R/ti/p/ を
-  // 正しく処理できない場合があるため、window.location.href を第一手段として使用する
-  const openFriendAdd = useCallback(() => {
-    if (!friendAddUrl) {
-      setError(
-        '公式LINEの友だち追加URLが設定されていません。管理画面 > 集客 > LINE配信設定で「公式LINE ベーシックID」を登録してください。'
-      )
-      return
-    }
-    // iOS/Android 両方で最も確実に友だち追加画面を開くのは location.href
-    try {
-      window.location.href = friendAddUrl
-    } catch (e) {
-      console.error('location.href for friend add failed', e)
-      // フォールバック: LIFF openWindow（external:true で外部ブラウザ扱い）
-      try {
-        liff.openWindow({ url: friendAddUrl, external: true })
-      } catch (e2) {
-        console.error('openWindow fallback failed', e2)
-        setError('友だち追加画面を開けませんでした。もう一度お試しください。')
-      }
-    }
-  }, [friendAddUrl])
-
   // 友だち追加ゲート画面
+  // Android版LINE内蔵ブラウザでは <button onClick> の JS 遷移がブロックされる
+  // ケースがあるため、友だち追加は <a href> で HTML ネイティブ遷移にする
   if (needsFriend) {
+    const friendAddDisabled = !friendAddUrl
     return (
       <main
         className="bg-gradient-to-b from-amber-50 to-white flex items-center justify-center px-6"
@@ -240,27 +218,62 @@ function LiffWelcomeInner() {
             友だち追加をお願いします。
           </p>
 
-          <button
-            onClick={openFriendAdd}
-            className="w-full py-3.5 rounded-xl bg-[#06C755] text-white font-bold text-base shadow-sm hover:brightness-95 active:brightness-90 transition"
-          >
-            ＋ 友だち追加する
-          </button>
+          {friendAddDisabled ? (
+            <div className="w-full py-3.5 rounded-xl bg-gray-200 text-gray-500 text-sm">
+              友だち追加URL読み込み中...
+              <br />
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 underline text-xs"
+              >
+                読み込み直す
+              </button>
+            </div>
+          ) : (
+            <a
+              href={friendAddUrl}
+              className="block w-full py-3.5 rounded-xl bg-[#06C755] text-white font-bold text-base shadow-sm active:brightness-90 transition no-underline"
+              style={{ textDecoration: 'none' }}
+            >
+              ＋ 友だち追加する
+            </a>
+          )}
 
           <p className="text-xs text-gray-500 mt-4">
             追加したら下のボタンで次へ進んでください
           </p>
 
           <button
+            type="button"
             onClick={recheckFriendship}
             disabled={friendChecking}
-            className="mt-3 w-full py-3 rounded-xl border border-gray-300 text-gray-800 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+            className="mt-3 w-full py-3 rounded-xl border border-gray-300 text-gray-800 text-sm font-medium active:bg-gray-100 disabled:opacity-60"
           >
             {friendChecking ? '確認中...' : '追加しました・次へ'}
           </button>
 
           {message && (
             <p className="mt-4 text-xs text-amber-700">{message}</p>
+          )}
+
+          {/* デバッグ用: URL を直接表示してタップできるように */}
+          {friendAddUrl && (
+            <details className="mt-6 text-left">
+              <summary className="text-xs text-gray-400 cursor-pointer">
+                うまく開かない場合
+              </summary>
+              <div className="mt-2 text-xs text-gray-600 break-all">
+                <a
+                  href={friendAddUrl}
+                  className="text-blue-600 underline"
+                >
+                  {friendAddUrl}
+                </a>
+                <p className="mt-2 text-gray-500">
+                  このリンクを直接タップしても友だち追加画面が開きます。
+                </p>
+              </div>
+            </details>
           )}
         </div>
       </main>
