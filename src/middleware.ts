@@ -21,6 +21,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/public') ||
     pathname.startsWith('/api/karte') ||
     pathname.startsWith('/api/timecard') ||
+    pathname.startsWith('/api/check-friendship') ||
     pathname.startsWith('/api/menus/active') ||
     pathname.startsWith('/menu/') ||
     pathname.startsWith('/recruit') ||
