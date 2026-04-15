@@ -9,6 +9,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { SalesFilter } from '@/components/features/sales-filter'
+import { Sparkles } from 'lucide-react'
+import {
+  fetchConceptMenuNames,
+  splitSalesByConcept,
+  isConceptVisit,
+  toExTax,
+  CONCEPT_INCENTIVE_RATE,
+} from '@/lib/sales-utils'
 
 const isSupabaseConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
@@ -23,6 +31,7 @@ interface VisitRecord {
   checkin_at: string | null
   checkout_at: string | null
   expected_duration_minutes: number | null
+  service_menu: string | null
 }
 
 interface StaffSummary {
@@ -32,6 +41,9 @@ interface StaffSummary {
   avgPrice: number
   avgDuration: number | null
   avg30min: number | null
+  conceptRevenue: number
+  regularRevenue: number
+  conceptIncentive: number
 }
 
 interface DailySummary {
@@ -39,6 +51,8 @@ interface DailySummary {
   revenue: number
   count: number
   avgPrice: number
+  conceptRevenue: number
+  regularRevenue: number
 }
 
 interface MonthlySummary {
@@ -49,6 +63,9 @@ interface MonthlySummary {
   avgPrice: number
   avgDuration: number | null
   avg30min: number | null
+  conceptRevenue: number
+  regularRevenue: number
+  conceptIncentive: number
 }
 
 // ============================================
@@ -66,13 +83,19 @@ function calc30min(dur: number | null, expected: number | null): number | null {
   return Math.round((dur / expected) * 60 * 10) / 10
 }
 
-function aggregateByStaff(visits: VisitRecord[]): StaffSummary[] {
-  const map = new Map<string, { revenue: number; count: number; totalDur: number; durCount: number; total30: number; count30: number }>()
+function aggregateByStaff(visits: VisitRecord[], conceptNames: Set<string>): StaffSummary[] {
+  const map = new Map<string, { revenue: number; count: number; totalDur: number; durCount: number; total30: number; count30: number; conceptRevenue: number; regularRevenue: number }>()
 
   visits.forEach((v) => {
-    const entry = map.get(v.staff_name) || { revenue: 0, count: 0, totalDur: 0, durCount: 0, total30: 0, count30: 0 }
-    entry.revenue += v.price || 0
+    const entry = map.get(v.staff_name) || { revenue: 0, count: 0, totalDur: 0, durCount: 0, total30: 0, count30: 0, conceptRevenue: 0, regularRevenue: 0 }
+    const price = v.price || 0
+    entry.revenue += price
     entry.count += 1
+    if (isConceptVisit(v.service_menu, conceptNames)) {
+      entry.conceptRevenue += price
+    } else {
+      entry.regularRevenue += price
+    }
     const dur = calcDurationMin(v.checkin_at, v.checkout_at)
     if (dur) {
       entry.totalDur += dur
@@ -94,17 +117,26 @@ function aggregateByStaff(visits: VisitRecord[]): StaffSummary[] {
       avgPrice: data.count > 0 ? Math.round(data.revenue / data.count) : 0,
       avgDuration: data.durCount > 0 ? Math.round(data.totalDur / data.durCount) : null,
       avg30min: data.count30 > 0 ? Math.round(data.total30 / data.count30 * 10) / 10 : null,
+      conceptRevenue: data.conceptRevenue,
+      regularRevenue: data.regularRevenue,
+      conceptIncentive: Math.round(toExTax(data.conceptRevenue) * CONCEPT_INCENTIVE_RATE),
     }))
     .sort((a, b) => b.revenue - a.revenue)
 }
 
-function aggregateByDay(visits: VisitRecord[]): DailySummary[] {
-  const map = new Map<string, { revenue: number; count: number }>()
+function aggregateByDay(visits: VisitRecord[], conceptNames: Set<string>): DailySummary[] {
+  const map = new Map<string, { revenue: number; count: number; conceptRevenue: number; regularRevenue: number }>()
 
   visits.forEach((v) => {
-    const entry = map.get(v.visit_date) || { revenue: 0, count: 0 }
-    entry.revenue += v.price || 0
+    const entry = map.get(v.visit_date) || { revenue: 0, count: 0, conceptRevenue: 0, regularRevenue: 0 }
+    const price = v.price || 0
+    entry.revenue += price
     entry.count += 1
+    if (isConceptVisit(v.service_menu, conceptNames)) {
+      entry.conceptRevenue += price
+    } else {
+      entry.regularRevenue += price
+    }
     map.set(v.visit_date, entry)
   })
 
@@ -114,18 +146,26 @@ function aggregateByDay(visits: VisitRecord[]): DailySummary[] {
       revenue: data.revenue,
       count: data.count,
       avgPrice: data.count > 0 ? Math.round(data.revenue / data.count) : 0,
+      conceptRevenue: data.conceptRevenue,
+      regularRevenue: data.regularRevenue,
     }))
     .sort((a, b) => b.date.localeCompare(a.date))
 }
 
-function aggregateByMonth(visits: VisitRecord[]): MonthlySummary[] {
-  const map = new Map<string, { revenue: number; count: number; totalDur: number; durCount: number; total30: number; count30: number }>()
+function aggregateByMonth(visits: VisitRecord[], conceptNames: Set<string>): MonthlySummary[] {
+  const map = new Map<string, { revenue: number; count: number; totalDur: number; durCount: number; total30: number; count30: number; conceptRevenue: number; regularRevenue: number }>()
 
   visits.forEach((v) => {
     const month = v.visit_date.substring(0, 7) // "YYYY-MM"
-    const entry = map.get(month) || { revenue: 0, count: 0, totalDur: 0, durCount: 0, total30: 0, count30: 0 }
-    entry.revenue += v.price || 0
+    const entry = map.get(month) || { revenue: 0, count: 0, totalDur: 0, durCount: 0, total30: 0, count30: 0, conceptRevenue: 0, regularRevenue: 0 }
+    const price = v.price || 0
+    entry.revenue += price
     entry.count += 1
+    if (isConceptVisit(v.service_menu, conceptNames)) {
+      entry.conceptRevenue += price
+    } else {
+      entry.regularRevenue += price
+    }
     const dur = calcDurationMin(v.checkin_at, v.checkout_at)
     if (dur) {
       entry.totalDur += dur
@@ -150,6 +190,9 @@ function aggregateByMonth(visits: VisitRecord[]): MonthlySummary[] {
         avgPrice: data.count > 0 ? Math.round(data.revenue / data.count) : 0,
         avgDuration: data.durCount > 0 ? Math.round(data.totalDur / data.durCount) : null,
         avg30min: data.count30 > 0 ? Math.round(data.total30 / data.count30 * 10) / 10 : null,
+        conceptRevenue: data.conceptRevenue,
+        regularRevenue: data.regularRevenue,
+        conceptIncentive: Math.round(toExTax(data.conceptRevenue) * CONCEPT_INCENTIVE_RATE),
       }
     })
     .sort((a, b) => b.month.localeCompare(a.month))
@@ -158,6 +201,13 @@ function aggregateByMonth(visits: VisitRecord[]): MonthlySummary[] {
 // ============================================
 // デモデータ
 // ============================================
+
+// デモ用: コンセプトメニュー名（is_concept = true とみなす）
+const DEMO_CONCEPT_NAMES = new Set<string>(['コンセプトカット', 'プレミアムカラー'])
+
+// デモ用: インデックス → サービスメニュー名
+// 0: レギュラーカット / 1: コンセプトカット / 2: カット+プレミアムカラー / 3: カット+カラー
+const DEMO_MENUS = ['カット', 'コンセプトカット', 'カット、プレミアムカラー', 'カット、カラー']
 
 function getDemoVisits(): VisitRecord[] {
   // [date, staffIdx(0=山田,1=佐々木), price, hour, durationMin]
@@ -222,13 +272,15 @@ function getDemoVisits(): VisitRecord[] {
   ]
 
   const staffNames = ['山田', '佐々木']
-  return raw.map(([date, si, price, hour, dur]) => ({
+  return raw.map(([date, si, price, hour, dur], idx) => ({
     visit_date: date,
     staff_name: staffNames[si],
     price,
     checkin_at: `${date}T${String(hour).padStart(2, '0')}:00:00`,
     checkout_at: `${date}T${String(hour).padStart(2, '0')}:${String(dur).padStart(2, '0')}:00`,
     expected_duration_minutes: 30 as number | null,
+    // 擬似的なメニュー割当（約半数をコンセプトにしてデモの見栄えを良くする）
+    service_menu: DEMO_MENUS[idx % DEMO_MENUS.length],
   }))
 }
 
@@ -246,7 +298,7 @@ async function fetchSalesData(staffFilter?: string) {
 
   let query = supabase
     .from('visit_history')
-    .select('visit_date, staff_name, price, checkin_at, checkout_at, expected_duration_minutes')
+    .select('visit_date, staff_name, price, checkin_at, checkout_at, expected_duration_minutes, service_menu')
     .gte('visit_date', startDate)
     .order('visit_date', { ascending: false })
 
@@ -266,9 +318,13 @@ async function fetchSalesData(staffFilter?: string) {
 
   const staffList = staffData?.map((s) => s.name) || []
 
+  // コンセプトメニュー名集合を取得
+  const conceptNames = await fetchConceptMenuNames(supabase)
+
   return {
     visits: (visits || []) as VisitRecord[],
     staffList,
+    conceptNames,
   }
 }
 
@@ -298,10 +354,12 @@ export default async function SalesPage({
 
   let visits: VisitRecord[]
   let staffList: string[]
+  let conceptNames: Set<string>
 
   if (!isSupabaseConfigured) {
     const allVisits = getDemoVisits()
     staffList = ['山田', '佐々木']
+    conceptNames = DEMO_CONCEPT_NAMES
 
     // スタッフフィルター適用
     visits = staffFilter && staffFilter !== 'all'
@@ -311,6 +369,7 @@ export default async function SalesPage({
     const data = await fetchSalesData(staffFilter)
     visits = data.visits
     staffList = data.staffList
+    conceptNames = data.conceptNames
   }
 
   // 今月のデータを抽出
@@ -319,9 +378,12 @@ export default async function SalesPage({
   const currentMonthVisits = visits.filter((v) => v.visit_date.startsWith(thisMonth))
 
   // 集計
-  const staffSummary = aggregateByStaff(currentMonthVisits)
-  const dailySummary = aggregateByDay(currentMonthVisits)
-  const monthlySummary = aggregateByMonth(visits)
+  const staffSummary = aggregateByStaff(currentMonthVisits, conceptNames)
+  const dailySummary = aggregateByDay(currentMonthVisits, conceptNames)
+  const monthlySummary = aggregateByMonth(visits, conceptNames)
+
+  // 今月のコンセプト/レギュラー分割
+  const conceptSplit = splitSalesByConcept(currentMonthVisits, conceptNames)
 
   // 今月のKPI
   const monthRevenue = currentMonthVisits.reduce((sum, v) => sum + (v.price || 0), 0)
@@ -391,6 +453,50 @@ export default async function SalesPage({
         </Card>
       </div>
 
+      {/* コンセプト / レギュラー 売上分割 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-purple-200 bg-purple-50/40">
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">コンセプト売上（今月）</p>
+            <p className="text-2xl font-bold mt-1 text-purple-700">
+              {formatCurrency(conceptSplit.conceptRevenue)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {conceptSplit.conceptCount}件 / 税抜 {formatCurrency(conceptSplit.conceptRevenueExTax)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-sky-200 bg-sky-50/40">
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">レギュラー売上（今月）</p>
+            <p className="text-2xl font-bold mt-1 text-sky-700">
+              {formatCurrency(conceptSplit.regularRevenue)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {conceptSplit.regularCount}件
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-amber-300 bg-gradient-to-br from-amber-50 to-yellow-100">
+          <CardContent className="pt-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                  コンセプトインセンティブ予測
+                </p>
+                <p className="text-2xl font-bold mt-1 text-amber-700">
+                  {formatCurrency(conceptSplit.conceptIncentive)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  コンセプト税抜 × {Math.round(CONCEPT_INCENTIVE_RATE * 100)}%
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* 60分基準 KPI */}
       <Card className="border-amber-200 bg-amber-50/50">
         <CardContent className="pt-6">
@@ -421,6 +527,9 @@ export default async function SalesPage({
                   <TableRow>
                     <TableHead>スタッフ</TableHead>
                     <TableHead className="text-right">売上</TableHead>
+                    <TableHead className="text-right">コンセプト</TableHead>
+                    <TableHead className="text-right">レギュラー</TableHead>
+                    <TableHead className="text-right">インセンティブ予測</TableHead>
                     <TableHead className="text-center">客数</TableHead>
                     <TableHead className="text-right">客単価</TableHead>
                     <TableHead className="text-center">平均タイム</TableHead>
@@ -433,6 +542,9 @@ export default async function SalesPage({
                       <TableRow key={s.staffName}>
                         <TableCell className="font-medium">{s.staffName}</TableCell>
                         <TableCell className="text-right">{formatCurrency(s.revenue)}</TableCell>
+                        <TableCell className="text-right text-purple-700">{formatCurrency(s.conceptRevenue)}</TableCell>
+                        <TableCell className="text-right text-sky-700">{formatCurrency(s.regularRevenue)}</TableCell>
+                        <TableCell className="text-right text-amber-700 font-semibold">{formatCurrency(s.conceptIncentive)}</TableCell>
                         <TableCell className="text-center">{s.count}人</TableCell>
                         <TableCell className="text-right">{formatCurrency(s.avgPrice)}</TableCell>
                         <TableCell className="text-center">
@@ -445,7 +557,7 @@ export default async function SalesPage({
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
                         データがありません
                       </TableCell>
                     </TableRow>
@@ -456,6 +568,15 @@ export default async function SalesPage({
                       <TableCell>合計</TableCell>
                       <TableCell className="text-right">
                         {formatCurrency(staffSummary.reduce((sum, s) => sum + s.revenue, 0))}
+                      </TableCell>
+                      <TableCell className="text-right text-purple-700">
+                        {formatCurrency(staffSummary.reduce((sum, s) => sum + s.conceptRevenue, 0))}
+                      </TableCell>
+                      <TableCell className="text-right text-sky-700">
+                        {formatCurrency(staffSummary.reduce((sum, s) => sum + s.regularRevenue, 0))}
+                      </TableCell>
+                      <TableCell className="text-right text-amber-700">
+                        {formatCurrency(staffSummary.reduce((sum, s) => sum + s.conceptIncentive, 0))}
                       </TableCell>
                       <TableCell className="text-center">
                         {staffSummary.reduce((sum, s) => sum + s.count, 0)}人
@@ -488,6 +609,8 @@ export default async function SalesPage({
                 <TableRow>
                   <TableHead>日付</TableHead>
                   <TableHead className="text-right">売上</TableHead>
+                  <TableHead className="text-right">コンセプト</TableHead>
+                  <TableHead className="text-right">レギュラー</TableHead>
                   <TableHead className="text-center">客数</TableHead>
                   <TableHead className="text-right">客単価</TableHead>
                 </TableRow>
@@ -498,13 +621,15 @@ export default async function SalesPage({
                     <TableRow key={d.date}>
                       <TableCell>{formatDate(d.date)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(d.revenue)}</TableCell>
+                      <TableCell className="text-right text-purple-700">{formatCurrency(d.conceptRevenue)}</TableCell>
+                      <TableCell className="text-right text-sky-700">{formatCurrency(d.regularRevenue)}</TableCell>
                       <TableCell className="text-center">{d.count}人</TableCell>
                       <TableCell className="text-right">{formatCurrency(d.avgPrice)}</TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
                       データがありません
                     </TableCell>
                   </TableRow>
@@ -514,6 +639,8 @@ export default async function SalesPage({
                   <TableRow className="bg-muted/50 font-bold">
                     <TableCell>合計</TableCell>
                     <TableCell className="text-right">{formatCurrency(monthRevenue)}</TableCell>
+                    <TableCell className="text-right text-purple-700">{formatCurrency(conceptSplit.conceptRevenue)}</TableCell>
+                    <TableCell className="text-right text-sky-700">{formatCurrency(conceptSplit.regularRevenue)}</TableCell>
                     <TableCell className="text-center">{monthCount}人</TableCell>
                     <TableCell className="text-right">{formatCurrency(monthAvgPrice)}</TableCell>
                   </TableRow>
@@ -536,6 +663,9 @@ export default async function SalesPage({
                 <TableRow>
                   <TableHead>月</TableHead>
                   <TableHead className="text-right">売上</TableHead>
+                  <TableHead className="text-right">コンセプト</TableHead>
+                  <TableHead className="text-right">レギュラー</TableHead>
+                  <TableHead className="text-right">インセンティブ予測</TableHead>
                   <TableHead className="text-center">客数</TableHead>
                   <TableHead className="text-right">客単価</TableHead>
                   <TableHead className="text-center">平均タイム</TableHead>
@@ -548,6 +678,9 @@ export default async function SalesPage({
                     <TableRow key={m.month}>
                       <TableCell>{m.label}</TableCell>
                       <TableCell className="text-right">{formatCurrency(m.revenue)}</TableCell>
+                      <TableCell className="text-right text-purple-700">{formatCurrency(m.conceptRevenue)}</TableCell>
+                      <TableCell className="text-right text-sky-700">{formatCurrency(m.regularRevenue)}</TableCell>
+                      <TableCell className="text-right text-amber-700 font-semibold">{formatCurrency(m.conceptIncentive)}</TableCell>
                       <TableCell className="text-center">{m.count}人</TableCell>
                       <TableCell className="text-right">{formatCurrency(m.avgPrice)}</TableCell>
                       <TableCell className="text-center">
@@ -560,7 +693,7 @@ export default async function SalesPage({
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-4 text-muted-foreground">
                       データがありません
                     </TableCell>
                   </TableRow>
