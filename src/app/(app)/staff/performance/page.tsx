@@ -17,6 +17,11 @@ import {
   calculateS4Incentive,
   getStageAdvancementInfo,
 } from '@/lib/salary-calculator'
+import {
+  fetchConceptMenuNames,
+  splitSalesByConcept,
+} from '@/lib/sales-utils'
+import { Sparkles } from 'lucide-react'
 
 const isSupabaseConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
@@ -201,10 +206,13 @@ export default async function StaffPerformancePage() {
   let isLineLinked = false
   let authUserId: string | undefined
   let visits: VisitRecord[]
+  let conceptNames: Set<string> = new Set()
 
   if (!isSupabaseConfigured) {
     staffInfo = getDemoStaffInfo()
     visits = getDemoVisits()
+    // デモ用コンセプトメニュー
+    conceptNames = new Set(['髪質改善', '縮毛矯正'])
   } else {
     const currentStaff = await getCachedStaffInfo()
     if (!currentStaff) redirect('/login')
@@ -265,6 +273,9 @@ export default async function StaffPerformancePage() {
       customer_name: customerMap.get(v.customer_id as string) ?? null,
       style_name: styleMap.get(v.style_category_id as string) ?? null,
     }))
+
+    // コンセプトメニュー名の取得
+    conceptNames = await fetchConceptMenuNames(supabase)
   }
 
   // 今月のデータ
@@ -283,6 +294,8 @@ export default async function StaffPerformancePage() {
   const monthRevenue = currentMonthVisits.reduce((sum, v) => sum + (v.price || 0), 0)
   // 今月のKPI（税抜）- 給与計算用
   const monthRevenueExTax = toExTax(monthRevenue)
+  // コンセプト / レギュラー売上分離
+  const conceptSplit = splitSalesByConcept(currentMonthVisits, conceptNames)
   const monthCount = currentMonthVisits.length
   const monthAvgPrice = monthCount > 0 ? Math.round(monthRevenue / monthCount) : 0
   const monthAvgPriceExTax = monthCount > 0 ? Math.round(monthRevenueExTax / monthCount) : 0
@@ -399,6 +412,65 @@ export default async function StaffPerformancePage() {
               <p className="text-xs text-muted-foreground mt-1">
                 メニュー推定時間を30分に正規化した施術効率（30分未満が効率的）
               </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* コンセプト / レギュラー売上 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border-purple-200 bg-purple-50/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-purple-700" />
+              <p className="text-sm text-purple-800 font-medium">コンセプト売上（今月）</p>
+            </div>
+            <p className="text-2xl font-bold mt-1 text-purple-900">
+              {formatCurrency(conceptSplit.conceptRevenue)}
+            </p>
+            <p className="text-xs text-purple-700 mt-0.5">
+              {conceptSplit.conceptCount}人 / 税抜 {formatCurrency(conceptSplit.conceptRevenueExTax)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-gray-200">
+          <CardContent className="pt-6">
+            <p className="text-sm text-gray-700 font-medium">レギュラー売上（今月）</p>
+            <p className="text-2xl font-bold mt-1 text-gray-900">
+              {formatCurrency(conceptSplit.regularRevenue)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {conceptSplit.regularCount}人
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* コンセプトインセンティブ予測 */}
+      <Card className="border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg text-amber-900 flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            コンセプトインセンティブ予測（今月）
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex justify-between items-baseline">
+              <span className="text-sm text-amber-800">コンセプト売上（税抜）</span>
+              <span className="text-lg font-semibold text-amber-900">
+                {formatCurrency(conceptSplit.conceptRevenueExTax)}
+              </span>
+            </div>
+            <div className="flex justify-between items-baseline">
+              <span className="text-sm text-amber-800">インセンティブ率</span>
+              <span className="text-sm font-medium text-amber-900">5%</span>
+            </div>
+            <div className="border-t border-amber-300 pt-2 flex justify-between items-baseline">
+              <span className="text-sm font-medium text-amber-900">予測インセンティブ</span>
+              <span className="text-3xl font-bold text-amber-700">
+                {formatCurrency(conceptSplit.conceptIncentive)}
+              </span>
             </div>
           </div>
         </CardContent>
