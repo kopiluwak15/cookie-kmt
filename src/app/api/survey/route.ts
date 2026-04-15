@@ -68,6 +68,9 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // 新規顧客として作成
+      // line_friend_date は webhook の follow イベントで設定する。
+      // LIFF 認証だけで line_user_id は取れるが、実際に友だち追加されている
+      // とは限らないため、ここで設定しない。
       const { error } = await supabase.from('customer').insert({
         name,
         name_kana: name_kana || null,
@@ -76,7 +79,6 @@ export async function POST(request: NextRequest) {
         visit_motivation,
         notes: notes || null,
         line_user_id,
-        line_friend_date: new Date().toISOString(),
         first_visit_date: today,
         last_visit_date: today,
       })

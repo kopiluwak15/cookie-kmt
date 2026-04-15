@@ -196,7 +196,7 @@ async function handleLogin(request: NextRequest, lineUserId: string) {
 }
 
 /**
- * アンケート/ルーレット: LINE user IDと表示名をHMAC署名付きで/surveyにリダイレクト
+ * アンケート: LINE user IDと表示名をHMAC署名付きで/surveyにリダイレクト
  */
 async function handleSurvey(request: NextRequest, lineUserId: string, displayName: string, channelSecret: string) {
   // HMAC署名を生成してなりすまし防止

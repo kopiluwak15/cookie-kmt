@@ -77,7 +77,10 @@ export async function POST(req: Request) {
     occupation: body.occupation || null,
     visit_motivation: body.visitRoute,
     line_user_id: body.lineUserId || null,
-    line_friend_date: body.lineUserId ? new Date().toISOString() : null,
+    // line_friend_date は webhook の follow イベントで設定する。
+    // LIFF 認証だけで line_user_id は取れるが、実際に友だち追加されている
+    // とは限らないため、ここで NOW を入れると LINE 配信で「ブロック扱い」
+    // のエラーが起きる原因になる。
     first_visit_date: today,
     last_visit_date: today,
   }

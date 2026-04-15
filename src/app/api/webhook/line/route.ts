@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
                       },
                       {
                         type: 'text',
-                        text: 'COOKIE 熊本 へようこそ！\n簡単なアンケートにご回答いただくと、次回以降スペシャルルーレットに参加できます🎰',
+                        text: 'COOKIE 熊本 へようこそ！\n簡単なアンケートにご回答いただくと、ご来店がよりスムーズになります✨',
                         wrap: true,
                         size: 'sm',
                         color: '#666666',

@@ -139,7 +139,7 @@ export default function QrCodesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              LINE連携済みのお客様用チェックインQRです。初回はアンケート、2回目以降はルーレットに遷移します。
+              LINE連携済みのお客様用チェックインQRです。初回はアンケート、2回目以降はありがとう画面に遷移します。
             </p>
             <div className="flex flex-col items-center gap-4">
               <div id="qr-survey" className="p-4 bg-white rounded-lg border">

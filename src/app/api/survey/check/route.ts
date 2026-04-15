@@ -18,21 +18,12 @@ export async function POST(request: NextRequest) {
 
     const { data: customer } = await supabase
       .from('customer')
-      .select('id, name, visit_motivation, total_visits, last_roulette_at, line_blocked, first_visit_date')
+      .select('id, name, visit_motivation, total_visits, line_blocked, first_visit_date')
       .eq('line_user_id', line_user_id)
       .single()
 
-    // ルーレット当選確率を取得
-    const { data: winRateSetting } = await supabase
-      .from('global_settings')
-      .select('value')
-      .eq('key', 'roulette_win_rate')
-      .single()
-
-    const winRate = winRateSetting ? parseFloat(winRateSetting.value) : 1
-
     if (!customer) {
-      return NextResponse.json({ exists: false, hasSurvey: false, winRate })
+      return NextResponse.json({ exists: false, hasSurvey: false })
     }
 
     // 日本時間の今日の日付
@@ -61,28 +52,11 @@ export async function POST(request: NextRequest) {
     // アンケート済みかどうか: visit_motivationが設定されている
     const hasSurvey = !!customer.visit_motivation
 
-    // 1日1回制限チェック
-    let alreadyPlayedToday = false
-    if (customer.last_roulette_at) {
-      const lastPlayed = new Date(customer.last_roulette_at)
-      const now = new Date()
-      // 日本時間（UTC+9）で同日かチェック
-      const jstOffset = 9 * 60 * 60 * 1000
-      const lastPlayedJST = new Date(lastPlayed.getTime() + jstOffset)
-      const nowJST = new Date(now.getTime() + jstOffset)
-      alreadyPlayedToday =
-        lastPlayedJST.getFullYear() === nowJST.getFullYear() &&
-        lastPlayedJST.getMonth() === nowJST.getMonth() &&
-        lastPlayedJST.getDate() === nowJST.getDate()
-    }
-
     return NextResponse.json({
       exists: true,
       hasSurvey,
       name: customer.name,
       totalVisits: customer.total_visits,
-      winRate,
-      alreadyPlayedToday,
     })
   } catch (error) {
     console.error('顧客チェックAPIエラー:', error)

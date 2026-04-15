@@ -184,8 +184,19 @@ export async function sendConceptResurveyLine(
     .single()
 
   if (!customer) return { ok: false, error: '顧客が見つかりません' }
-  if (!customer.line_user_id) return { ok: false, error: 'LINE 未登録の顧客です' }
-  if (customer.line_blocked) return { ok: false, error: '公式LINEがブロックされています' }
+  if (!customer.line_user_id) {
+    return {
+      ok: false,
+      error:
+        'LINE未登録の顧客です。お客様が初回チェックイン時にLIFF認証のみで、公式LINEの友だち追加を行っていない可能性があります。',
+    }
+  }
+  if (customer.line_blocked) {
+    return {
+      ok: false,
+      error: '公式LINEがブロックされています（または友だち追加されていません）',
+    }
+  }
 
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID
   if (!liffId) return { ok: false, error: 'LIFF_IDが設定されていません' }
@@ -208,14 +219,29 @@ export async function sendConceptResurveyLine(
     return { ok: true }
   } catch (e) {
     const err = e as Error
+    console.error('[counseling] sendConceptResurveyLine failed', err)
+
+    // 失敗も履歴に残して後から追跡できるようにする
+    await admin.from('line_message_history').insert({
+      customer_id: customer.id,
+      message_type: 'thank_you',
+      line_request_id: null,
+      status: 'failed',
+      error_message: err.message?.slice(0, 500) || 'unknown',
+    })
+
     if (err.message === 'LINE_BLOCKED') {
+      // LINE APIが「ユーザー未発見」を返す = 友だち追加されていない or ブロック済み
       await admin
         .from('customer')
         .update({ line_blocked: true })
         .eq('id', customer.id)
-      return { ok: false, error: '送信に失敗しました（ブロックされています）' }
+      return {
+        ok: false,
+        error:
+          '送信失敗: このお客様は公式LINEの友だち追加が完了していないか、ブロックされています。次回ご来店時に友だち追加をご案内ください。',
+      }
     }
-    console.error('[counseling] sendConceptResurveyLine failed', err)
     return { ok: false, error: `送信に失敗しました: ${err.message}` }
   }
 }

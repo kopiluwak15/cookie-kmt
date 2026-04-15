@@ -51,7 +51,6 @@ function getDemoGlobalSettings(): GlobalSetting[] {
     { id: 'demo-g1', key: 'booking_url', value: 'https://beauty.hotpepper.jp/example/', updated_at: '2025-01-01T00:00:00Z' },
     { id: 'demo-g2', key: 'dormant_threshold_days', value: '90', updated_at: '2025-01-01T00:00:00Z' },
     { id: 'demo-g3', key: 'weekday_availability_text', value: '平日は比較的空いております。ぜひお気軽にご予約ください。', updated_at: '2025-01-01T00:00:00Z' },
-    { id: 'demo-g4', key: 'roulette_win_rate', value: '1', updated_at: '2025-01-01T00:00:00Z' },
   ]
 }
 
@@ -345,35 +344,6 @@ export default function MarketingLinePage() {
             </div>
           </div>
 
-          <Separator />
-
-          <div className="space-y-2">
-            <Label>ルーレット当選確率（%）</Label>
-            <div className="flex gap-2 items-center">
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                step="0.1"
-                defaultValue={getSetting('roulette_win_rate') || '1'}
-                id="ml_roulette_win_rate"
-                className="max-w-[120px]"
-              />
-              <span className="text-sm text-muted-foreground">%</span>
-              <Button
-                size="sm"
-                onClick={() => {
-                  const el = document.getElementById('ml_roulette_win_rate') as HTMLInputElement
-                  handleSaveGlobal('roulette_win_rate', el.value)
-                }}
-              >
-                <Save className="h-3 w-3" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              2回目以降の来店時ルーレットの当選確率（例: 1 = 1/100）
-            </p>
-          </div>
         </CardContent>
       </Card>
 
