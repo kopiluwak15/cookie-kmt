@@ -1,18 +1,24 @@
 'use client'
 
-// LIFFは「LINE認証」のみに使用する。
-// 友だち追加は LIFF の「友だち追加オプション (Aggressive)」により、
-// LINE 側が自動で「許可する → 友だち追加 → このページ」を実行するため、
-// 本アプリでは友だち追加ゲートを持たない（cookie-crm と同じ動線）。
+// LIFF は「LINE認証」と「ブロック検知ゲート」に使用する。
 //
-// 友だち状態の DB 反映（line_friend_date）は
-// /api/check-friendship をバックグラウンドで呼ぶことで担保する。
-// 判定はブロックしない（Aggressive が稀にスキップされても UX を優先）。
+// 友達追加の動線:
+//   LINE Developers の LIFF 設定「友だち追加オプション (Aggressive)」により、
+//   未追加ユーザーには LINE 側が自動で「許可→友達追加→LIFF」を実行する。
+//   これは cookie-crm と同じ動線で、Android でも確実に動く。
+//
+// 注意点（LIFF Aggressive の穴）:
+//   ブロック中のユーザーは LINE にとって「既知」扱いのため Aggressive が
+//   スキップされ、ブロックしたまま LIFF が開いてしまう。
+//   → その場合のみ /api/check-friendship が isBlocked=true を返すので、
+//     アプリ側でゲートを表示してブロック解除を案内する。
+//
+// それ以外（新規 / 既存友達）はゲートを挟まず、そのまま次画面へ素通りさせる。
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import liff from '@line/liff'
-import { Loader2, ExternalLink, AlertCircle } from 'lucide-react'
+import { Loader2, ExternalLink, AlertCircle, UserPlus, RefreshCw } from 'lucide-react'
 
 export default function LiffWelcomePage() {
   return (
@@ -36,8 +42,9 @@ function LiffWelcomeInner() {
   const [message, setMessage] = useState('LINE認証中...')
   const [error, setError] = useState('')
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null)
+  // ブロック中ユーザー向けのゲート state
+  const [blockedGate, setBlockedGate] = useState<{ friendAddUrl: string } | null>(null)
 
-  // ID取得後 → カルテ判定 → 次画面へ遷移する共通処理
   const proceedAfterAuth = useCallback(
     async (lid: string, dn: string) => {
       const mode = searchParams?.get('mode')
@@ -100,16 +107,31 @@ function LiffWelcomeInner() {
         const lid = profile.userId
         const dn = profile.displayName || ''
 
-        // 非ブロッキングで友だち状態を DB に反映（line_friend_date 更新）
-        // Aggressive 経由で追加された友達をサーバー側で確定させる用途。
-        // 失敗しても UX には影響させない。
+        // スタッフ用モードは判定スキップ
         const mode = searchParams?.get('mode')
-        if (mode !== 'timecard' && mode !== 'karte') {
-          fetch('/api/check-friendship', {
+        if (mode === 'timecard' || mode === 'karte') {
+          await proceedAfterAuth(lid, dn)
+          return
+        }
+
+        // ブロック状態を確認（未追加はAggressiveが処理済みなので無視）
+        setMessage('LINE友だち状態を確認中...')
+        try {
+          const res = await fetch('/api/check-friendship', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lineUserId: lid }),
-          }).catch((e) => console.warn('[welcome] check-friendship failed', e))
+          })
+          const data = await res.json()
+          if (data.isBlocked) {
+            setBlockedGate({
+              friendAddUrl: data.friendAddUrl || window.location.href,
+            })
+            setMessage('')
+            return
+          }
+        } catch (e) {
+          console.warn('[welcome] check-friendship failed (non-blocking):', e)
         }
 
         await proceedAfterAuth(lid, dn)
@@ -121,6 +143,61 @@ function LiffWelcomeInner() {
     run()
   }, [searchParams, proceedAfterAuth])
 
+  // === ブロック中ユーザー向けゲート ===
+  if (blockedGate) {
+    return (
+      <main
+        className="bg-gradient-to-b from-amber-50 to-white flex items-center justify-center px-6 py-10"
+        style={{ minHeight: '100dvh' }}
+      >
+        <div className="max-w-sm w-full bg-white rounded-2xl border border-amber-200 shadow-sm p-8 text-center">
+          <div className="h-14 w-14 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
+            <UserPlus className="h-7 w-7 text-amber-600" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">
+            公式LINEのブロックを解除してください
+          </h2>
+          <p className="text-sm text-gray-600 leading-relaxed mb-6">
+            ご予約確認・アンケート・お知らせを
+            <br />
+            公式LINEでお送りしています。
+            <br />
+            下のボタンから公式LINEを開き、
+            <br />
+            「ブロック解除」または「友だち追加」を
+            <br />
+            実施してください。
+          </p>
+
+          <a
+            href={blockedGate.friendAddUrl}
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#06C755] text-white font-semibold no-underline active:opacity-80"
+          >
+            <UserPlus className="h-5 w-5" />
+            公式LINEを開く
+          </a>
+
+          <div className="mt-4">
+            <a
+              href={typeof window !== 'undefined' ? window.location.href : '#'}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-600 underline underline-offset-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              解除後こちら（再読込）
+            </a>
+          </div>
+
+          <p className="mt-6 text-xs text-gray-400 leading-relaxed">
+            ブロック中はLINEメッセージが届かないため、
+            <br />
+            サービスをご利用いただけません。
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  // === エラー ===
   if (error) {
     return (
       <main
@@ -142,6 +219,7 @@ function LiffWelcomeInner() {
     )
   }
 
+  // === ローディング ===
   return (
     <main
       className="bg-gradient-to-b from-gray-50 to-white flex items-center justify-center px-6"
