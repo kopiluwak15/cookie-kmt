@@ -149,22 +149,46 @@ function LiffWelcomeInner() {
   }, [searchParams, proceedAfterFriend])
 
   // 「追加しました」再チェック
+  // Android版LINEでは liff.getFriendship() が応答しないケースがあるため、
+  // タイムアウトを設けてハングを回避する。
+  // 加えて、ユーザーが「追加しました」を明示的に押した以上はクリック意図を
+  // 信頼し、確認APIが友だち状態を返せなかった場合でも続行する。
   const recheckFriendship = useCallback(async () => {
     if (!profileState) return
     setFriendChecking(true)
+    setMessage('確認中...')
+
+    let isFriend = false
+    let checkedOk = false
     try {
-      const f = await liff.getFriendship()
-      if (f.friendFlag) {
-        setNeedsFriend(false)
-        setMessage('確認できました。続行します...')
-        await proceedAfterFriend(profileState.lid, profileState.dn)
+      const result = await Promise.race<{ friendFlag: boolean } | 'timeout'>([
+        liff.getFriendship() as Promise<{ friendFlag: boolean }>,
+        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 3000)),
+      ])
+      if (result !== 'timeout') {
+        isFriend = !!result.friendFlag
+        checkedOk = true
       } else {
-        setMessage('まだ友だち追加が確認できません。もう一度お試しください。')
+        console.warn('getFriendship timed out (likely Android LINE), proceeding on user confirmation')
       }
     } catch (e) {
       console.error('recheck friendship failed', e)
-      setMessage('確認に失敗しました。もう一度お試しください。')
-    } finally {
+    }
+
+    // 確認できた＆友だちでない場合のみブロック。それ以外（確認OK・友だち／確認失敗）は続行
+    if (checkedOk && !isFriend) {
+      setMessage('まだ友だち追加が確認できません。「＋ 友だち追加する」を押して追加してからもう一度お試しください。')
+      setFriendChecking(false)
+      return
+    }
+
+    try {
+      setNeedsFriend(false)
+      setMessage('続行します...')
+      await proceedAfterFriend(profileState.lid, profileState.dn)
+    } catch (e) {
+      console.error('proceedAfterFriend failed', e)
+      setMessage('続行に失敗しました。もう一度お試しください。')
       setFriendChecking(false)
     }
   }, [profileState, proceedAfterFriend])
