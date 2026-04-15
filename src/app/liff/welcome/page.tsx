@@ -1,13 +1,13 @@
 'use client'
 
-// LIFFは「LINE認証のみ」に使用し、取得したユーザーIDを付けて
-// 外部ブラウザへ引き継ぐ（liff.openWindow external:true）。
-// 以降のカルテ作成・アンケート・タイムカードはすべて通常ブラウザで動作する。
+// LIFFは「LINE認証のみ」に使用し、取得したユーザーIDを付けて次画面へ遷移する。
+// 友だち追加は LIFF 側の「Botリンク機能（Aggressive）」により LINE 側で
+// 自動的に処理されるため、本アプリでは友だち追加ゲートを持たない。
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import liff from '@line/liff'
-import { Loader2, ExternalLink, AlertCircle, UserPlus } from 'lucide-react'
+import { Loader2, ExternalLink, AlertCircle } from 'lucide-react'
 
 export default function LiffWelcomePage() {
   return (
@@ -31,16 +31,9 @@ function LiffWelcomeInner() {
   const [message, setMessage] = useState('LINE認証中...')
   const [error, setError] = useState('')
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null)
-  // 友だち追加ゲート
-  const [needsFriend, setNeedsFriend] = useState(false)
-  const [friendChecking, setFriendChecking] = useState(false)
-  const [profileState, setProfileState] = useState<{ lid: string; dn: string } | null>(null)
-  // 公式LINE友だち追加URL（DB global_settings.line_oa_basic_id から取得）
-  const [friendAddUrl, setFriendAddUrl] = useState('')
-  const [oaStatus, setOaStatus] = useState<'loading' | 'ready' | 'not_configured' | 'fetch_error'>('loading')
 
-  // ID取得後 → カルテ判定 → 外部ブラウザへ引き継ぐ共通処理
-  const proceedAfterFriend = useCallback(async (lid: string, dn: string) => {
+  // ID取得後 → カルテ判定 → 次画面へ遷移する共通処理
+  const proceedAfterAuth = useCallback(async (lid: string, dn: string) => {
     const mode = searchParams?.get('mode')
     const appUrl = window.location.origin
     let targetUrl: string
@@ -75,9 +68,6 @@ function LiffWelcomeInner() {
 
     setHandoffUrl(targetUrl)
     setMessage('読み込み中...')
-
-    // LINE内（LIFF）内で画面遷移する。外部ブラウザ（Safari/Chrome）には飛ばさない
-    // ※ location.href なら同じLIFFコンテキストでそのまま遷移できる
     try {
       window.location.href = targetUrl
     } catch (e) {
@@ -104,210 +94,14 @@ function LiffWelcomeInner() {
         const profile = await liff.getProfile()
         const lid = profile.userId
         const dn = profile.displayName || ''
-        setProfileState({ lid, dn })
-
-        // 公式LINE友だち追加URLを取得（失敗しても続行）
-        try {
-          const oaRes = await fetch('/api/public/line-oa', { cache: 'no-store' })
-          const oaData = await oaRes.json()
-          if (oaData?.addFriendUrl) {
-            setFriendAddUrl(oaData.addFriendUrl)
-            setOaStatus('ready')
-          } else {
-            setOaStatus('not_configured')
-          }
-        } catch (e) {
-          console.error('fetch line-oa failed', e)
-          setOaStatus('fetch_error')
-        }
-
-        // スタッフ用モードは友だち追加不要
-        const mode = searchParams?.get('mode')
-        if (mode === 'timecard' || mode === 'karte') {
-          await proceedAfterFriend(lid, dn)
-          return
-        }
-
-        // 友だち判定
-        setMessage('友だち状態を確認中...')
-        let isFriend = false
-        try {
-          const f = await liff.getFriendship()
-          isFriend = !!f.friendFlag
-        } catch (e) {
-          console.error('getFriendship failed', e)
-          // 取得失敗時は一旦ゲート表示してユーザーに判断させる
-          isFriend = false
-        }
-
-        if (!isFriend) {
-          setNeedsFriend(true)
-          setMessage('')
-          return
-        }
-
-        await proceedAfterFriend(lid, dn)
+        await proceedAfterAuth(lid, dn)
       } catch (err) {
         console.error('LIFF welcome error:', err)
         setError(err instanceof Error ? err.message : '初期化に失敗しました')
       }
     }
     run()
-  }, [searchParams, proceedAfterFriend])
-
-  // 「追加しました」再チェック
-  // Android版LINEでは liff.getFriendship() が応答しないケースがあるため、
-  // タイムアウトを設けてハングを回避する。
-  // 加えて、ユーザーが「追加しました」を明示的に押した以上はクリック意図を
-  // 信頼し、確認APIが友だち状態を返せなかった場合でも続行する。
-  const recheckFriendship = useCallback(async () => {
-    if (!profileState) return
-    setFriendChecking(true)
-    setMessage('確認中...')
-
-    let isFriend = false
-    let checkedOk = false
-    try {
-      const result = await Promise.race<{ friendFlag: boolean } | 'timeout'>([
-        liff.getFriendship() as Promise<{ friendFlag: boolean }>,
-        new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 3000)),
-      ])
-      if (result !== 'timeout') {
-        isFriend = !!result.friendFlag
-        checkedOk = true
-      } else {
-        console.warn('getFriendship timed out (likely Android LINE), proceeding on user confirmation')
-      }
-    } catch (e) {
-      console.error('recheck friendship failed', e)
-    }
-
-    // 確認できた＆友だちでない場合のみブロック。それ以外（確認OK・友だち／確認失敗）は続行
-    if (checkedOk && !isFriend) {
-      setMessage('まだ友だち追加が確認できません。「＋ 友だち追加する」を押して追加してからもう一度お試しください。')
-      setFriendChecking(false)
-      return
-    }
-
-    try {
-      setNeedsFriend(false)
-      setMessage('続行します...')
-      await proceedAfterFriend(profileState.lid, profileState.dn)
-    } catch (e) {
-      console.error('proceedAfterFriend failed', e)
-      setMessage('続行に失敗しました。もう一度お試しください。')
-      setFriendChecking(false)
-    }
-  }, [profileState, proceedAfterFriend])
-
-  // 友だち追加ゲート画面
-  // Android版LINE内蔵ブラウザでは <button onClick> の JS遷移がブロックされる
-  // ケースがあるため、遷移を伴うアクションはすべて <a href> にする。
-  // また、URLが未設定でも「スキップして続行」できる逃げ道を常に提示する。
-  if (needsFriend && profileState) {
-    const currentHref = typeof window !== 'undefined' ? window.location.href : ''
-    return (
-      <main
-        className="bg-gradient-to-b from-amber-50 to-white flex items-center justify-center px-6 py-6"
-        style={{ minHeight: '100dvh' }}
-      >
-        <div className="max-w-sm w-full bg-white rounded-2xl border border-amber-200 p-8 text-center shadow-sm">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mb-4">
-            <UserPlus className="h-8 w-8 text-amber-600" />
-          </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">
-            公式LINEを友だち追加してください
-          </h2>
-          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-            お礼メッセージや次回ご来店のご案内を
-            <br />
-            お送りするために、公式LINEの
-            <br />
-            友だち追加をお願いします。
-          </p>
-
-          {/* 友だち追加ボタン（ステータス別） */}
-          {oaStatus === 'loading' && (
-            <div className="w-full py-3.5 rounded-xl bg-gray-100 text-gray-500 text-sm">
-              友だち追加URL読み込み中...
-            </div>
-          )}
-
-          {oaStatus === 'ready' && friendAddUrl && (
-            <a
-              href={friendAddUrl}
-              className="block w-full py-3.5 rounded-xl bg-[#06C755] text-white font-bold text-base shadow-sm active:brightness-90 no-underline"
-              style={{ textDecoration: 'none' }}
-            >
-              ＋ 友だち追加する
-            </a>
-          )}
-
-          {(oaStatus === 'not_configured' || oaStatus === 'fetch_error') && (
-            <div className="w-full py-3 px-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 text-left">
-              <p className="font-semibold mb-1">友だち追加URLが設定されていません</p>
-              <p className="leading-relaxed">
-                店舗スタッフに「公式LINEの基本IDを管理画面で登録してください」とお伝えください。
-                <br />
-                下の「スキップして続行」から先に進むこともできます。
-              </p>
-            </div>
-          )}
-
-          <p className="text-xs text-gray-500 mt-4">
-            追加したら下のボタンで次へ進んでください
-          </p>
-
-          {/* 「追加しました・次へ」は従来どおり friendship 再確認 */}
-          <button
-            type="button"
-            onClick={recheckFriendship}
-            disabled={friendChecking}
-            className="mt-3 w-full py-3 rounded-xl border border-gray-300 text-gray-800 text-sm font-medium active:bg-gray-100 disabled:opacity-60"
-          >
-            {friendChecking ? '確認中...' : '追加しました・次へ'}
-          </button>
-
-          {/* スキップリンク: JS が動かない環境でも確実に次に進める `<a href>` 経由 */}
-          <a
-            href={`/liff/welcome/continue?lid=${encodeURIComponent(profileState.lid)}&dn=${encodeURIComponent(profileState.dn)}&mode=${encodeURIComponent(searchParams?.get('mode') || '')}`}
-            className="mt-4 block text-xs text-gray-500 underline"
-          >
-            スキップして続行（友だち追加を後で行う）
-          </a>
-
-          {message && (
-            <p className="mt-4 text-xs text-amber-700">{message}</p>
-          )}
-
-          {/* 読み込み直し: `<a href>` 経由でページリロードを保証 */}
-          <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col gap-2">
-            {currentHref && (
-              <a
-                href={currentHref}
-                className="text-xs text-gray-400 underline"
-              >
-                ページを読み込み直す
-              </a>
-            )}
-            {/* デバッグ用: URLを直接タップで開く */}
-            {friendAddUrl && (
-              <details className="text-left">
-                <summary className="text-xs text-gray-400 cursor-pointer">
-                  上のボタンで追加画面が開かない場合
-                </summary>
-                <div className="mt-2 text-xs text-gray-600 break-all">
-                  <a href={friendAddUrl} className="text-blue-600 underline">
-                    {friendAddUrl}
-                  </a>
-                </div>
-              </details>
-            )}
-          </div>
-        </div>
-      </main>
-    )
-  }
+  }, [searchParams, proceedAfterAuth])
 
   if (error) {
     return (
@@ -319,12 +113,12 @@ function LiffWelcomeInner() {
           <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-red-700 mb-2">エラー</h2>
           <p className="text-sm text-gray-600 mb-6 whitespace-pre-wrap">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800"
+          <a
+            href={typeof window !== 'undefined' ? window.location.href : '#'}
+            className="inline-block px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium no-underline"
           >
             もう一度試す
-          </button>
+          </a>
         </div>
       </main>
     )
