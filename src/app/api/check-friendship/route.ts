@@ -31,7 +31,10 @@ export async function POST(req: Request) {
     })
 
     if (res.status === 404) {
-      return NextResponse.json({ isFriend: false })
+      // 未追加の場合、友達追加URLも一緒に返す
+      // 環境変数優先、なければ LINE Bot Info API から basicId を取得
+      const friendAddUrl = await resolveFriendAddUrl(token)
+      return NextResponse.json({ isFriend: false, friendAddUrl })
     }
 
     if (res.ok) {
@@ -65,9 +68,42 @@ export async function POST(req: Request) {
     // その他 (500等): fail-safe として未追加扱い（誤って通すよりは再試行を促す）
     const errBody = await res.text().catch(() => '')
     console.error('[check-friendship] unexpected status', res.status, errBody)
-    return NextResponse.json({ isFriend: false, error: `line_api_${res.status}` })
+    const friendAddUrl = await resolveFriendAddUrl(token)
+    return NextResponse.json({ isFriend: false, friendAddUrl, error: `line_api_${res.status}` })
   } catch (e) {
     console.error('[check-friendship] failed', e)
     return NextResponse.json({ isFriend: false, error: 'internal' }, { status: 500 })
+  }
+}
+
+// 友達追加URLを解決する。
+// 1. 環境変数 NEXT_PUBLIC_LINE_FRIEND_URL / LINE_FRIEND_URL があればそれを使用
+// 2. なければ LINE Bot Info API で basicId を取得して URL を組み立てる
+// 3. 全滅時は null
+let cachedFriendAddUrl: { url: string; expires: number } | null = null
+async function resolveFriendAddUrl(token: string): Promise<string | null> {
+  const envUrl = process.env.NEXT_PUBLIC_LINE_FRIEND_URL || process.env.LINE_FRIEND_URL
+  if (envUrl) return envUrl
+
+  // 1時間キャッシュ
+  if (cachedFriendAddUrl && cachedFriendAddUrl.expires > Date.now()) {
+    return cachedFriendAddUrl.url
+  }
+
+  try {
+    const res = await fetch('https://api.line.me/v2/bot/info', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return null
+    const info = (await res.json()) as { basicId?: string }
+    if (!info.basicId) return null
+    // basicId は "@xxxxx" 形式。URLエンコードして組み立てる
+    const encoded = encodeURIComponent(info.basicId)
+    const url = `https://line.me/R/ti/p/${encoded}`
+    cachedFriendAddUrl = { url, expires: Date.now() + 60 * 60 * 1000 }
+    return url
+  } catch (e) {
+    console.error('[check-friendship] bot info failed', e)
+    return null
   }
 }

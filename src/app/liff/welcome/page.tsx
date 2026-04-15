@@ -37,13 +37,12 @@ function LiffWelcomeInner() {
   const [message, setMessage] = useState('LINE認証中...')
   const [error, setError] = useState('')
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null)
-  // 友だち未追加の場合に表示するゲート state
-  const [friendGate, setFriendGate] = useState<{ lid: string; dn: string } | null>(null)
-
-  // 友達追加URL（環境変数 or LIFF URL の再オープンで Aggressive を再発動）
-  const friendAddUrl =
-    process.env.NEXT_PUBLIC_LINE_FRIEND_URL ||
-    (typeof window !== 'undefined' ? window.location.href : '#')
+  // 友だち未追加の場合に表示するゲート state（API から URL を受け取る）
+  const [friendGate, setFriendGate] = useState<{
+    lid: string
+    dn: string
+    friendAddUrl: string
+  } | null>(null)
 
   // ID取得後 → カルテ判定 → 次画面へ遷移する共通処理
   const proceedAfterFriend = useCallback(
@@ -131,7 +130,11 @@ function LiffWelcomeInner() {
 
       if (!data.isFriend) {
         // 友だち未追加 → ゲート表示（JS に頼らず <a href> で離脱）
-        setFriendGate({ lid, dn })
+        const friendAddUrl =
+          data.friendAddUrl ||
+          process.env.NEXT_PUBLIC_LINE_FRIEND_URL ||
+          window.location.href
+        setFriendGate({ lid, dn, friendAddUrl })
         setMessage('')
         return
       }
@@ -169,7 +172,7 @@ function LiffWelcomeInner() {
 
           {/* 友達追加ボタン: Androidでも確実に動くよう <a href> */}
           <a
-            href={friendAddUrl}
+            href={friendGate.friendAddUrl}
             className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#06C755] text-white font-semibold no-underline active:opacity-80"
           >
             <UserPlus className="h-5 w-5" />
