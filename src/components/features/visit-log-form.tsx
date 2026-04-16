@@ -208,8 +208,9 @@ export function VisitLogForm({
   const otherAmountNum = otherAmount === '' || otherAmount === '-' ? 0 : Number(otherAmount)
   const safeOtherAmount = Number.isFinite(otherAmountNum) ? otherAmountNum : 0
 
-  // 合計（メニュー + その他）
-  const computedTotal = totalMenuPrice + safeOtherAmount
+  // 合計（メニュー + その他）→ 税込
+  const subtotal = totalMenuPrice + safeOtherAmount
+  const computedTotal = Math.round(subtotal * 1.1)
 
   // メニュー or その他 が変わったら、手動編集していなければ price を自動更新
   useEffect(() => {
@@ -649,7 +650,7 @@ export function VisitLogForm({
         {/* 施術料金 */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-base font-semibold">施術料金</Label>
+            <Label className="text-base font-semibold">施術料金（税込）</Label>
             {priceManuallyEdited && computedTotal !== 0 && (
               <button
                 type="button"
@@ -686,9 +687,11 @@ export function VisitLogForm({
                   {safeOtherAmount > 0 ? '+' : '−'} ¥{Math.abs(safeOtherAmount).toLocaleString()}
                 </>
               )}
-              {' = '}
+              {' '}
+              (税抜 ¥{subtotal.toLocaleString()})
+              {' → '}
               <span className="font-bold text-foreground">
-                ¥{computedTotal.toLocaleString()}
+                税込 ¥{computedTotal.toLocaleString()}
               </span>
               {!priceManuallyEdited && <span className="ml-1 text-green-600">（自動）</span>}
             </p>
