@@ -269,8 +269,8 @@ export function VisitLogForm({
         formData.set('has_concept_menu', '1')
       }
 
-      // 症例データ（コンセプトメニュー時のみ送信）
-      if (hasConceptMenu) {
+      // 症例データ（全メニューで送信）
+      {
         if (concernTags.length > 0) {
           formData.set('concern_tags', concernTags.join(','))
         }
@@ -623,15 +623,38 @@ export function VisitLogForm({
         {/* その他（割引・追加料金など） */}
         <div className="space-y-2">
           <Label className="text-base font-semibold">その他（割引・追加）</Label>
-          <div className="grid grid-cols-[120px_1fr] gap-2">
+          <div className="grid grid-cols-[auto_100px_1fr] gap-2 items-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 w-10 shrink-0 text-lg font-bold"
+              onClick={() => {
+                if (otherAmount.startsWith('-')) {
+                  setOtherAmount(otherAmount.slice(1))
+                } else if (otherAmount === '') {
+                  setOtherAmount('-')
+                } else {
+                  setOtherAmount('-' + otherAmount)
+                }
+              }}
+            >
+              ±
+            </Button>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">¥</span>
               <Input
-                type="number"
+                type="text"
                 inputMode="numeric"
+                pattern="-?[0-9]*"
                 value={otherAmount}
-                onChange={(e) => setOtherAmount(e.target.value)}
-                placeholder="例: -500"
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === '' || v === '-' || /^-?\d+$/.test(v)) {
+                    setOtherAmount(v)
+                  }
+                }}
+                placeholder="-500"
                 className="pl-8"
               />
             </div>
@@ -643,7 +666,7 @@ export function VisitLogForm({
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            マイナスを入力すると割引として合計から差し引かれます。
+            ±ボタンで割引/追加を切り替え。金額を入力してください。
           </p>
         </div>
 
@@ -775,16 +798,12 @@ export function VisitLogForm({
           />
         </div>
 
-        {/* 症例データ：コンセプトメニュー時のみ表示 */}
-        {hasConceptMenu && (
+        {/* 症例データ：全メニューで表示 */}
         <div className="space-y-4 border-t pt-5">
           <div className="flex items-start justify-between gap-2">
             <div>
               <Label className="text-base font-semibold">
                 症例メモ
-                <span className="ml-2 text-xs font-normal text-amber-700">
-                  コンセプトメニュー
-                </span>
               </Label>
               <p className="text-xs text-muted-foreground mt-0.5">
                 現状・カウンセリング・施術での発見・申し送りを記録 → AIが要約しリピート分析に活用
@@ -926,7 +945,6 @@ export function VisitLogForm({
             />
           </div>
         </div>
-        )}
 
         {/* 送信ボタン */}
         <Button
