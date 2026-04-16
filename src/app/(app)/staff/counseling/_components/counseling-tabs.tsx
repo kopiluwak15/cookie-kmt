@@ -32,15 +32,33 @@ const MENU_CATEGORY_LABELS: Record<string, string> = {
   product: '店内商品購入',
 }
 
-function resolveSelectedMenusText(karte: Record<string, unknown>): string | null {
-  if (typeof karte.selected_menus_text === 'string' && karte.selected_menus_text) {
-    return karte.selected_menus_text
-  }
+/** 気になる部位 ID → 日本語ラベル */
+const SPOT_LABELS: Record<string, string> = {
+  'f-top': 'トップ（前）',
+  'f-bangs': '前髪',
+  'f-side-l': 'サイド左（前）',
+  'f-side-r': 'サイド右（前）',
+  'f-face-l': '顔周り左',
+  'f-face-r': '顔周り右',
+  'f-sideburn': 'もみあげ',
+  'b-top': 'トップ（後）',
+  'b-side-l': 'サイド左（後）',
+  'b-side-r': 'サイド右（後）',
+  'b-back': '後頭部',
+  'b-nape': '襟足',
+}
+
+function resolveSelectedMenuTags(karte: Record<string, unknown>): string[] {
+  const sm = karte.selected_menus as string[] | undefined
+  if (sm && sm.length > 0) return sm.map((k) => MENU_CATEGORY_LABELS[k] || k)
   const raw = karte.raw as Record<string, unknown> | null | undefined
   const keys = raw?.selectedMenus as string[] | undefined
-  if (!keys || keys.length === 0) return null
-  const labels = keys.map((k) => MENU_CATEGORY_LABELS[k] || k).filter(Boolean)
-  return labels.length > 0 ? labels.join('、') : null
+  if (!keys || keys.length === 0) return []
+  return keys.map((k) => MENU_CATEGORY_LABELS[k] || k)
+}
+
+function resolveSpotLabels(spots: string[]): string[] {
+  return spots.map((s) => SPOT_LABELS[s] || s)
 }
 
 interface Props {
@@ -182,26 +200,15 @@ function KarteRow({ customer }: { customer: CheckedInCustomerWithKarte }) {
                 <ClipboardList className="h-4 w-4" /> カルテ情報
               </h4>
               <div className="grid grid-cols-1 gap-2 text-xs">
-                {k.visit_route && <LabelValue label="来店経路" value={k.visit_route} />}
-                {k.todays_wish?.length > 0 && <LabelTags label="本日のご希望" tags={k.todays_wish} />}
-                {k.history?.length > 0 && <LabelTags label="施術履歴" tags={k.history} />}
-                {k.worries?.length > 0 && (
-                  <LabelTags label="お悩み" tags={k.worries} extra={k.worries_other} />
-                )}
-                {k.reasons?.length > 0 && (
-                  <LabelTags label="来店理由" tags={k.reasons} extra={k.reasons_other} />
-                )}
-                {k.stay_style && (
-                  <LabelValue label="なりたい印象" value={k.stay_style_other || k.stay_style} />
-                )}
-                {k.dislikes?.length > 0 && (
-                  <LabelTags label="苦手なこと" tags={k.dislikes} extra={k.dislikes_other} />
-                )}
-                {k.spots?.length > 0 && <LabelTags label="気になる部位" tags={k.spots} />}
-                {(() => {
-                  const menuText = resolveSelectedMenusText(k)
-                  return menuText ? <LabelValue label="希望メニュー" value={menuText} /> : null
-                })()}
+                <LabelValue label="来店経路" value={k.visit_route || '未選択'} />
+                <LabelTagsOrEmpty label="本日のご希望" tags={k.todays_wish} />
+                <LabelTagsOrEmpty label="施術履歴" tags={k.history} />
+                <LabelTagsOrEmpty label="お悩み" tags={k.worries} extra={k.worries_other} />
+                <LabelTagsOrEmpty label="来店理由" tags={k.reasons} extra={k.reasons_other} />
+                <LabelValue label="なりたい印象" value={k.stay_style_other || k.stay_style || '未選択'} />
+                <LabelTagsOrEmpty label="苦手なこと" tags={k.dislikes} extra={k.dislikes_other} />
+                <LabelTagsOrEmpty label="気になる部位" tags={resolveSpotLabels(k.spots || [])} />
+                <LabelTagsOrEmpty label="希望メニュー" tags={resolveSelectedMenuTags(k)} />
               </div>
             </div>
           )}
@@ -260,6 +267,13 @@ function LabelTags({ label, tags, extra }: { label: string; tags: string[]; extr
       </div>
     </div>
   )
+}
+
+function LabelTagsOrEmpty({ label, tags, extra }: { label: string; tags?: string[] | null; extra?: string | null }) {
+  if (!tags || tags.length === 0) {
+    return <LabelValue label={label} value={extra ? `未選択（${extra}）` : '未選択'} />
+  }
+  return <LabelTags label={label} tags={tags} extra={extra} />
 }
 
 // ============================================

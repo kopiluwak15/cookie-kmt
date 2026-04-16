@@ -25,20 +25,39 @@ const MENU_CATEGORY_LABELS: Record<string, string> = {
   product: '店内商品購入',
 }
 
-/** karte_intake.raw.selectedMenus からメニューテキストを組み立てる */
-function resolveSelectedMenusText(karte: Record<string, unknown>): string | null {
-  // 1. selected_menus_text があればそのまま使う（将来のマイグレーション対応）
-  if (typeof karte.selected_menus_text === 'string' && karte.selected_menus_text) {
-    return karte.selected_menus_text
+/** 気になる部位 ID → 日本語ラベル */
+const SPOT_LABELS: Record<string, string> = {
+  'f-top': 'トップ（前）',
+  'f-bangs': '前髪',
+  'f-side-l': 'サイド左（前）',
+  'f-side-r': 'サイド右（前）',
+  'f-face-l': '顔周り左',
+  'f-face-r': '顔周り右',
+  'f-sideburn': 'もみあげ',
+  'b-top': 'トップ（後）',
+  'b-side-l': 'サイド左（後）',
+  'b-side-r': 'サイド右（後）',
+  'b-back': '後頭部',
+  'b-nape': '襟足',
+}
+
+/** karte_intake から希望メニューのラベル配列を取得 */
+function resolveSelectedMenuTags(karte: Record<string, unknown>): string[] {
+  // 1. selected_menus (text[]) があればそれを使う
+  const sm = karte.selected_menus as string[] | undefined
+  if (sm && sm.length > 0) {
+    return sm.map((k) => MENU_CATEGORY_LABELS[k] || k)
   }
-  // 2. raw.selectedMenus からカテゴリーキーを取得してラベルに変換
+  // 2. raw.selectedMenus からフォールバック（既存データ対応）
   const raw = karte.raw as Record<string, unknown> | null | undefined
   const keys = raw?.selectedMenus as string[] | undefined
-  if (!keys || keys.length === 0) return null
-  const labels = keys
-    .map((k) => MENU_CATEGORY_LABELS[k] || k)
-    .filter(Boolean)
-  return labels.length > 0 ? labels.join('、') : null
+  if (!keys || keys.length === 0) return []
+  return keys.map((k) => MENU_CATEGORY_LABELS[k] || k)
+}
+
+/** 気になる部位の ID を日本語ラベルに変換 */
+function resolveSpotLabels(spots: string[]): string[] {
+  return spots.map((s) => SPOT_LABELS[s] || s)
 }
 
 interface Props {
@@ -203,54 +222,46 @@ export function CustomerDetailTabs({
                           </Badge>
                         )}
                       </div>
-                      {k.visit_route && (
-                        <KarteLine label="来店経路" value={k.visit_route} />
-                      )}
-                      {k.todays_wish?.length > 0 && (
-                        <KarteTags label="本日のご希望" tags={k.todays_wish} />
-                      )}
-                      {k.history?.length > 0 && (
-                        <KarteTags label="施術履歴" tags={k.history} />
-                      )}
-                      {k.worries?.length > 0 && (
-                        <KarteTags
-                          label="お悩み"
-                          tags={k.worries}
-                          extra={k.worries_other}
-                        />
-                      )}
-                      {k.reasons?.length > 0 && (
-                        <KarteTags
-                          label="来店理由"
-                          tags={k.reasons}
-                          extra={k.reasons_other}
-                        />
-                      )}
-                      {k.stay_style && (
-                        <KarteLine
-                          label="なりたい印象"
-                          value={k.stay_style_other || k.stay_style}
-                        />
-                      )}
-                      {k.dislikes?.length > 0 && (
-                        <KarteTags
-                          label="苦手なこと"
-                          tags={k.dislikes}
-                          extra={k.dislikes_other}
-                        />
-                      )}
-                      {k.spots?.length > 0 && (
-                        <KarteTags label="気になる部位" tags={k.spots} />
-                      )}
-                      {(() => {
-                        const menuText = resolveSelectedMenusText(k)
-                        return menuText ? (
-                          <KarteLine
-                            label="希望メニュー"
-                            value={menuText}
-                          />
-                        ) : null
-                      })()}
+                      {/* アンケート回答順に全項目を表示（未選択も表示） */}
+                      <KarteLine
+                        label="来店経路"
+                        value={k.visit_route || '未選択'}
+                      />
+                      <KarteTagsOrEmpty
+                        label="本日のご希望"
+                        tags={k.todays_wish}
+                      />
+                      <KarteTagsOrEmpty
+                        label="施術履歴"
+                        tags={k.history}
+                      />
+                      <KarteTagsOrEmpty
+                        label="お悩み"
+                        tags={k.worries}
+                        extra={k.worries_other}
+                      />
+                      <KarteTagsOrEmpty
+                        label="来店理由"
+                        tags={k.reasons}
+                        extra={k.reasons_other}
+                      />
+                      <KarteLine
+                        label="なりたい印象"
+                        value={k.stay_style_other || k.stay_style || '未選択'}
+                      />
+                      <KarteTagsOrEmpty
+                        label="苦手なこと"
+                        tags={k.dislikes}
+                        extra={k.dislikes_other}
+                      />
+                      <KarteTagsOrEmpty
+                        label="気になる部位"
+                        tags={resolveSpotLabels(k.spots || [])}
+                      />
+                      <KarteTagsOrEmpty
+                        label="希望メニュー"
+                        tags={resolveSelectedMenuTags(k)}
+                      />
                     </div>
                   ))}
                 </div>
@@ -573,4 +584,20 @@ function KarteTags({
       </div>
     </div>
   )
+}
+
+/** タグ配列が空なら「未選択」を表示する KarteTags */
+function KarteTagsOrEmpty({
+  label,
+  tags,
+  extra,
+}: {
+  label: string
+  tags?: string[] | null
+  extra?: string | null
+}) {
+  if (!tags || tags.length === 0) {
+    return <KarteLine label={label} value={extra ? `未選択（${extra}）` : '未選択'} />
+  }
+  return <KarteTags label={label} tags={tags} extra={extra} />
 }
