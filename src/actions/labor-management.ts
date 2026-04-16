@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getCachedStaffInfo } from '@/lib/cached-auth'
 import { DeliveryTiming } from '@/types'
+import { notifyPendingVisitLogIfAllOut } from '@/lib/line/notify-pending-visitlog'
 
 // ============================================
 // JST日付ヘルパー
@@ -410,6 +411,11 @@ export async function checkOut(completedItemIds: string[], gpsVerified: boolean 
       // チェックリスト記録失敗は無視（退勤自体は成功させる）
     }
   }
+
+  // 全員退勤したら施術ログ未入力通知を非同期で発火
+  notifyPendingVisitLogIfAllOut().catch((e) =>
+    console.error('[checkOut] notifyPendingVisitLog error:', e)
+  )
 
   return { success: true, checkout_time: currentTime }
 }

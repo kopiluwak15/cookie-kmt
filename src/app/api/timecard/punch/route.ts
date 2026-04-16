@@ -2,6 +2,7 @@
 // LINE userId からスタッフ特定 → attendance 出退勤更新
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyPendingVisitLogIfAllOut } from '@/lib/line/notify-pending-visitlog'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -72,5 +73,11 @@ export async function POST(req: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // 全員退勤したら施術ログ未入力通知を非同期で発火（レスポンスはブロックしない）
+  notifyPendingVisitLogIfAllOut().catch((e) =>
+    console.error('[punch/check_out] notifyPendingVisitLog error:', e)
+  )
+
   return NextResponse.json({ ok: true, action: 'check_out', time: now, staff: { name: staff.name } })
 }
