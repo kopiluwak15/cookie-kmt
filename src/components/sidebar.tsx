@@ -22,6 +22,7 @@ import {
 const staffNav = [
   { href: '/staff/visit-log', label: '施術ログ', icon: ClipboardList },
   { href: '/staff/counseling', label: 'カウンセリング', icon: MessageSquareHeart },
+  { href: '/staff/customers', label: '顧客一覧', icon: Users },
   { href: '/staff/store-sales', label: '店舗売上', icon: TrendingUp },
   { href: '/staff/performance', label: 'マイ実績', icon: UserCircle },
   { href: '/staff/mypage', label: 'マイページ', icon: User },

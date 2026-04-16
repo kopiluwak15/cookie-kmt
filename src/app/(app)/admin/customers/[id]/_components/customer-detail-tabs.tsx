@@ -28,6 +28,8 @@ interface Props {
   conceptIntakes: any[]
   customerName: string
   isSupabaseConfigured: boolean
+  /** 閲覧専用モード（削除ボタン非表示） */
+  readOnly?: boolean
 }
 
 export function CustomerDetailTabs({
@@ -38,6 +40,7 @@ export function CustomerDetailTabs({
   conceptIntakes,
   customerName,
   isSupabaseConfigured,
+  readOnly = false,
 }: Props) {
   return (
     <Tabs defaultValue="visits" className="space-y-4">
@@ -66,7 +69,7 @@ export function CustomerDetailTabs({
                     <TableHead className="text-right">料金</TableHead>
                     <TableHead>担当</TableHead>
                     <TableHead className="text-center">お礼LINE</TableHead>
-                    <TableHead className="text-center w-[60px]">削除</TableHead>
+                    {!readOnly && <TableHead className="text-center w-[60px]">削除</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -109,22 +112,24 @@ export function CustomerDetailTabs({
                               <Badge variant="secondary">未送信</Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-center">
-                            {isSupabaseConfigured && (
-                              <DeleteVisitButton
-                                visitId={visit.id}
-                                visitDate={visit.visit_date}
-                                customerName={customerName}
-                              />
-                            )}
-                          </TableCell>
+                          {!readOnly && (
+                            <TableCell className="text-center">
+                              {isSupabaseConfigured && (
+                                <DeleteVisitButton
+                                  visitId={visit.id}
+                                  visitDate={visit.visit_date}
+                                  customerName={customerName}
+                                />
+                              )}
+                            </TableCell>
+                          )}
                         </TableRow>
                       )
                     })
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={readOnly ? 7 : 8}
                         className="text-center py-4 text-muted-foreground"
                       >
                         施術履歴がありません
