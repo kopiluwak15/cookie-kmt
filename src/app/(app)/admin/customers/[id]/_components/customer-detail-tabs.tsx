@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import { MESSAGE_TYPE_LABELS } from '@/lib/constants'
 import { DeleteVisitButton } from '@/components/features/delete-visit-button'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, ChevronDown, ChevronUp, FlaskConical, StickyNote } from 'lucide-react'
 import type { CaseRecord } from '@/types'
 
 /** カルテ作成時のカテゴリーキー → 日本語ラベル */
@@ -102,87 +103,23 @@ export function CustomerDetailTabs({
             <CardTitle className="text-lg">施術履歴</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>来店日</TableHead>
-                    <TableHead>施術メニュー</TableHead>
-                    <TableHead className="text-center">滞在時間</TableHead>
-                    <TableHead className="text-center">60分基準</TableHead>
-                    <TableHead className="text-right">料金</TableHead>
-                    <TableHead>担当</TableHead>
-                    <TableHead className="text-center">お礼LINE</TableHead>
-                    {!readOnly && <TableHead className="text-center w-[60px]">削除</TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visits.length > 0 ? (
-                    visits.map((visit) => {
-                      const dur =
-                        visit.checkin_at && visit.checkout_at
-                          ? Math.round(
-                              (new Date(visit.checkout_at).getTime() -
-                                new Date(visit.checkin_at).getTime()) /
-                                60000
-                            )
-                          : null
-                      const normalized30 =
-                        visit.expected_duration_minutes && dur && dur > 0
-                          ? Math.round(
-                              (dur / visit.expected_duration_minutes) * 60 * 10
-                            ) / 10
-                          : null
-                      return (
-                        <TableRow key={visit.id}>
-                          <TableCell>{visit.visit_date}</TableCell>
-                          <TableCell>{visit.service_menu}</TableCell>
-                          <TableCell className="text-center">
-                            {dur && dur > 0 ? `${dur}分` : '-'}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {normalized30 !== null ? `${normalized30}分` : '-'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {visit.price != null
-                              ? `¥${visit.price.toLocaleString()}`
-                              : '-'}
-                          </TableCell>
-                          <TableCell>{visit.staff_name}</TableCell>
-                          <TableCell className="text-center">
-                            {visit.thank_you_sent ? (
-                              <Badge variant="default">送信済</Badge>
-                            ) : (
-                              <Badge variant="secondary">未送信</Badge>
-                            )}
-                          </TableCell>
-                          {!readOnly && (
-                            <TableCell className="text-center">
-                              {isSupabaseConfigured && (
-                                <DeleteVisitButton
-                                  visitId={visit.id}
-                                  visitDate={visit.visit_date}
-                                  customerName={customerName}
-                                />
-                              )}
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      )
-                    })
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={readOnly ? 7 : 8}
-                        className="text-center py-4 text-muted-foreground"
-                      >
-                        施術履歴がありません
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            {visits.length > 0 ? (
+              <div className="space-y-2">
+                {visits.map((visit) => (
+                  <VisitRow
+                    key={visit.id}
+                    visit={visit}
+                    customerName={customerName}
+                    readOnly={readOnly}
+                    isSupabaseConfigured={isSupabaseConfigured}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                施術履歴がありません
+              </p>
+            )}
           </CardContent>
         </Card>
       </TabsContent>
@@ -600,4 +537,140 @@ function KarteTagsOrEmpty({
     return <KarteLine label={label} value={extra ? `未選択（${extra}）` : '未選択'} />
   }
   return <KarteTags label={label} tags={tags} extra={extra} />
+}
+
+// ============================================
+// 施術履歴の展開行
+// ============================================
+function VisitRow({
+  visit,
+  customerName,
+  readOnly,
+  isSupabaseConfigured,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visit: any
+  customerName: string
+  readOnly: boolean
+  isSupabaseConfigured: boolean
+}) {
+  const [open, setOpen] = useState(false)
+
+  const dur =
+    visit.checkin_at && visit.checkout_at
+      ? Math.round(
+          (new Date(visit.checkout_at).getTime() -
+            new Date(visit.checkin_at).getTime()) /
+            60000
+        )
+      : null
+  const normalized60 =
+    visit.expected_duration_minutes && dur && dur > 0
+      ? Math.round((dur / visit.expected_duration_minutes) * 60 * 10) / 10
+      : null
+
+  const hasDetail = !!(visit.chemical_notes || visit.notes)
+
+  return (
+    <div className="border rounded-md bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full p-3 text-left hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="text-sm font-semibold shrink-0">{visit.visit_date}</span>
+          <span className="text-sm truncate">{visit.service_menu}</span>
+          {visit.price != null && (
+            <Badge variant="outline" className="text-[10px] shrink-0">
+              ¥{visit.price.toLocaleString()}
+            </Badge>
+          )}
+          <span className="text-xs text-muted-foreground shrink-0">{visit.staff_name}</span>
+          {dur && dur > 0 && (
+            <span className="text-xs text-muted-foreground shrink-0">{dur}分</span>
+          )}
+          {visit.chemical_notes && (
+            <FlaskConical className="h-3 w-3 text-violet-500 shrink-0" />
+          )}
+          {visit.thank_you_sent ? (
+            <Badge variant="default" className="text-[10px] shrink-0">LINE済</Badge>
+          ) : (
+            <Badge variant="secondary" className="text-[10px] shrink-0">LINE未</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          {!readOnly && isSupabaseConfigured && (
+            <span
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex"
+            >
+              <DeleteVisitButton
+                visitId={visit.id}
+                visitDate={visit.visit_date}
+                customerName={customerName}
+              />
+            </span>
+          )}
+          {open ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+      </button>
+
+      {open && (
+        <div className="border-t px-4 py-3 space-y-3 bg-muted/10">
+          {/* 基本情報 */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div>
+              <span className="font-medium text-muted-foreground">滞在時間：</span>
+              <span>{dur && dur > 0 ? `${dur}分` : '-'}</span>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">60分基準：</span>
+              <span>{normalized60 !== null ? `${normalized60}分` : '-'}</span>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">料金：</span>
+              <span>{visit.price != null ? `¥${visit.price.toLocaleString()}` : '-'}</span>
+            </div>
+            <div>
+              <span className="font-medium text-muted-foreground">担当：</span>
+              <span>{visit.staff_name}</span>
+            </div>
+          </div>
+
+          {/* 薬剤 */}
+          {visit.chemical_notes && (
+            <div className="space-y-1">
+              <div className="text-xs font-semibold text-violet-700 flex items-center gap-1">
+                <FlaskConical className="h-3 w-3" /> 薬剤
+              </div>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap bg-violet-50 rounded-md p-2 border border-violet-100">
+                {visit.chemical_notes}
+              </p>
+            </div>
+          )}
+
+          {/* 備考 */}
+          {visit.notes && (
+            <div className="space-y-1">
+              <div className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+                <StickyNote className="h-3 w-3" /> 備考
+              </div>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                {visit.notes}
+              </p>
+            </div>
+          )}
+
+          {!hasDetail && (
+            <p className="text-xs text-muted-foreground">詳細データなし</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
