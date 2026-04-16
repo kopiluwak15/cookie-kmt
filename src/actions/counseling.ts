@@ -82,9 +82,12 @@ export interface KarteIntakeRow {
   dislikes: string[]
   dislikes_other: string | null
   spots: string[]
-  selected_menus_text: string | null
+  selected_menus: string[]
   is_concept_session: boolean
   created_at: string
+  /** karte_intake.raw (jsonb) — 元の送信データ全体 */
+  raw: Record<string, unknown> | null
+  [key: string]: unknown
 }
 
 export interface ConceptIntakeRow {

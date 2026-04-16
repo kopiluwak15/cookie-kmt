@@ -23,6 +23,26 @@ import {
   type CheckedInCustomerWithKarte,
 } from '@/actions/counseling'
 
+/** カルテ作成時のカテゴリーキー → 日本語ラベル */
+const MENU_CATEGORY_LABELS: Record<string, string> = {
+  kaizen: '髪質改善 / 縮毛矯正',
+  consult: 'ご相談 / おまかせ',
+  regular: 'ヘアカット / カラー / パーマ / トリートメント',
+  care: 'メンテナンス / ヘッドスパ / ヘアセット / メイク',
+  product: '店内商品購入',
+}
+
+function resolveSelectedMenusText(karte: Record<string, unknown>): string | null {
+  if (typeof karte.selected_menus_text === 'string' && karte.selected_menus_text) {
+    return karte.selected_menus_text
+  }
+  const raw = karte.raw as Record<string, unknown> | null | undefined
+  const keys = raw?.selectedMenus as string[] | undefined
+  if (!keys || keys.length === 0) return null
+  const labels = keys.map((k) => MENU_CATEGORY_LABELS[k] || k).filter(Boolean)
+  return labels.length > 0 ? labels.join('、') : null
+}
+
 interface Props {
   initialCustomers: PendingCheckedInCustomer[]
   initialKarteCustomers: CheckedInCustomerWithKarte[]
@@ -178,9 +198,10 @@ function KarteRow({ customer }: { customer: CheckedInCustomerWithKarte }) {
                   <LabelTags label="苦手なこと" tags={k.dislikes} extra={k.dislikes_other} />
                 )}
                 {k.spots?.length > 0 && <LabelTags label="気になる部位" tags={k.spots} />}
-                {k.selected_menus_text && (
-                  <LabelValue label="希望メニュー" value={k.selected_menus_text} />
-                )}
+                {(() => {
+                  const menuText = resolveSelectedMenusText(k)
+                  return menuText ? <LabelValue label="希望メニュー" value={menuText} /> : null
+                })()}
               </div>
             </div>
           )}

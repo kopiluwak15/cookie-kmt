@@ -16,6 +16,31 @@ import { DeleteVisitButton } from '@/components/features/delete-visit-button'
 import { Sparkles } from 'lucide-react'
 import type { CaseRecord } from '@/types'
 
+/** カルテ作成時のカテゴリーキー → 日本語ラベル */
+const MENU_CATEGORY_LABELS: Record<string, string> = {
+  kaizen: '髪質改善 / 縮毛矯正',
+  consult: 'ご相談 / おまかせ',
+  regular: 'ヘアカット / カラー / パーマ / トリートメント',
+  care: 'メンテナンス / ヘッドスパ / ヘアセット / メイク',
+  product: '店内商品購入',
+}
+
+/** karte_intake.raw.selectedMenus からメニューテキストを組み立てる */
+function resolveSelectedMenusText(karte: Record<string, unknown>): string | null {
+  // 1. selected_menus_text があればそのまま使う（将来のマイグレーション対応）
+  if (typeof karte.selected_menus_text === 'string' && karte.selected_menus_text) {
+    return karte.selected_menus_text
+  }
+  // 2. raw.selectedMenus からカテゴリーキーを取得してラベルに変換
+  const raw = karte.raw as Record<string, unknown> | null | undefined
+  const keys = raw?.selectedMenus as string[] | undefined
+  if (!keys || keys.length === 0) return null
+  const labels = keys
+    .map((k) => MENU_CATEGORY_LABELS[k] || k)
+    .filter(Boolean)
+  return labels.length > 0 ? labels.join('、') : null
+}
+
 interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   visits: any[]
@@ -217,12 +242,15 @@ export function CustomerDetailTabs({
                       {k.spots?.length > 0 && (
                         <KarteTags label="気になる部位" tags={k.spots} />
                       )}
-                      {k.selected_menus_text && (
-                        <KarteLine
-                          label="希望メニュー"
-                          value={k.selected_menus_text}
-                        />
-                      )}
+                      {(() => {
+                        const menuText = resolveSelectedMenusText(k)
+                        return menuText ? (
+                          <KarteLine
+                            label="希望メニュー"
+                            value={menuText}
+                          />
+                        ) : null
+                      })()}
                     </div>
                   ))}
                 </div>
