@@ -79,15 +79,18 @@ export async function notifyPendingVisitLogIfAllOut(): Promise<
   }
 
   // ---- 4. メッセージ組み立て ----
+  const separator = 'ーーーーーーーーーーーーーーーーーーー'
   const lines = pending.map((c) => {
     const code = c.customer_code || '---'
     return `${code}　${c.name}様の施術ログが入力されていません。`
   })
 
   const messageText =
-    `【施術ログ未入力のお知らせ】\n\n` +
+    `【施術ログ未入力のお知らせ】\n` +
+    `${separator}\n` +
     lines.join('\n') +
-    `\n\n担当は入力をお願いします。`
+    `\n\n担当は入力をお願いします。\n` +
+    separator
 
   // ---- 5. アクティブスタッフ全員（LINE登録済み）に送信 ----
   const { data: staffList } = await supabase

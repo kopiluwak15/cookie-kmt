@@ -19,7 +19,7 @@
     },
     {
       "path": "/api/cron/check-pending-visitlog",
-      "schedule": "0 13 * * *"
+      "schedule": "0 11 * * *"
     }
   ]
 }
