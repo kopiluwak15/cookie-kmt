@@ -8,6 +8,7 @@ const tabs = [
   { href: '/admin/analytics/repeat', label: 'リピート分析' },
   { href: '/admin/analytics/cases', label: '症例分析' },
   { href: '/admin/analytics/history', label: '来店履歴' },
+  { href: '/admin/analytics/pending-visitlog', label: 'ログ未入力' },
 ]
 
 export default function AnalyticsLayout({ children }: { children: React.ReactNode }) {
