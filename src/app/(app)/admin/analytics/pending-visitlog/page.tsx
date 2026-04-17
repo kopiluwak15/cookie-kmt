@@ -12,16 +12,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import Link from 'next/link'
-import { Loader2, RefreshCw, AlertTriangle, FilePenLine } from 'lucide-react'
+import { Loader2, RefreshCw, AlertTriangle, FilePenLine, Trash2 } from 'lucide-react'
 import {
   getPendingVisitLogCustomers,
+  deletePendingVisitLog,
   type PendingVisitLogCustomer,
 } from '@/actions/admin-pending-visitlog'
 
 export default function PendingVisitLogPage() {
   const [customers, setCustomers] = useState<PendingVisitLogCustomer[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] =
+    useState<PendingVisitLogCustomer | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -38,6 +52,26 @@ export default function PendingVisitLogPage() {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(deleteTarget.customer_id)
+    try {
+      const result = await deletePendingVisitLog(deleteTarget.customer_id)
+      if (result.success) {
+        setCustomers((prev) =>
+          prev.filter((c) => c.customer_id !== deleteTarget.customer_id)
+        )
+      } else {
+        alert(result.error || '削除に失敗しました')
+      }
+    } catch {
+      alert('削除に失敗しました')
+    } finally {
+      setDeleting(null)
+      setDeleteTarget(null)
+    }
+  }
 
   // 日付でグルーピング
   const grouped = customers.reduce<Record<string, PendingVisitLogCustomer[]>>(
@@ -111,10 +145,60 @@ export default function PendingVisitLogPage() {
               key={date}
               date={date}
               customers={grouped[date]}
+              deleting={deleting}
+              onDeleteClick={setDeleteTarget}
             />
           ))}
         </div>
       )}
+
+      {/* 削除確認ダイアログ */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ログ未入力レコードを削除</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && (
+                <>
+                  <span className="font-medium text-foreground">
+                    {deleteTarget.customer_code || '---'} {deleteTarget.name}
+                  </span>
+                  {' '}のチェックイン（{deleteTarget.checkin_date}）を削除します。
+                  <br />
+                  <br />
+                  顧客の最終来店日を「前回の実来店日」または「なし」に戻します。
+                  <span className="block mt-1 text-xs">
+                    ※ 施術履歴（visit_history）には一切影響しません。
+                    ゴーストチェックインの取り消し用途です。
+                  </span>
+                  <br />
+                  この操作は取り消せません。
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={!!deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  削除中...
+                </>
+              ) : (
+                '削除する'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -144,9 +228,13 @@ function formatCheckinTime(isoStr: string): string {
 function PendingDateTable({
   date,
   customers,
+  deleting,
+  onDeleteClick,
 }: {
   date: string
   customers: PendingVisitLogCustomer[]
+  deleting: string | null
+  onDeleteClick: (c: PendingVisitLogCustomer) => void
 }) {
   return (
     <Card>
@@ -165,7 +253,8 @@ function PendingDateTable({
               <TableRow>
                 <TableHead className="w-[120px]">チェックイン時刻</TableHead>
                 <TableHead>顧客</TableHead>
-                <TableHead className="text-center w-[160px]">操作</TableHead>
+                <TableHead className="text-center w-[160px]">施術ログ</TableHead>
+                <TableHead className="text-center w-[80px]">削除</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -186,8 +275,24 @@ function PendingDateTable({
                     <Button asChild size="sm" variant="default">
                       <Link href="/staff/visit-log">
                         <FilePenLine className="h-4 w-4 mr-1" />
-                        施術ログ入力
+                        入力
                       </Link>
+                    </Button>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => onDeleteClick(c)}
+                      disabled={deleting === c.customer_id}
+                      title="ゴーストチェックインを削除"
+                    >
+                      {deleting === c.customer_id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </Button>
                   </TableCell>
                 </TableRow>

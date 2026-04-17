@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { getCachedStaffInfo } from '@/lib/cached-auth'
 
 export interface PendingVisitLogCustomer {
@@ -67,4 +68,71 @@ export async function getPendingVisitLogCustomers(): Promise<PendingVisitLogCust
       checkin_date: c.last_visit_date as string,
       checkin_at: c.updated_at as string,
     }))
+}
+
+/**
+ * ログ未入力レコードを削除（= customer.last_visit_date を前回の実来店日にリセット）。
+ *
+ * 管理者のみ実行可。ゴーストチェックイン（お客様が自宅でLIFFを再起動して
+ * 誤発火したケース等）を取り除くために使用する。
+ *
+ * ※ visit_history には触れない。customer.last_visit_date のみリセット。
+ *   - 他の visit_history がある場合: 直近の visit_date に戻す
+ *   - 他の visit_history が無い場合: NULL にする
+ */
+export async function deletePendingVisitLog(
+  customerId: string
+): Promise<{ success?: boolean; error?: string }> {
+  const staff = await getCachedStaffInfo()
+  if (!staff || staff.role !== 'admin') {
+    return { error: 'この操作は管理者のみ実行できます' }
+  }
+
+  const supabase = await createClient()
+  const admin = createAdminClient()
+  const today = todayJst()
+
+  // 対象顧客の現在の last_visit_date を取得
+  const { data: customer } = await supabase
+    .from('customer')
+    .select('id, last_visit_date')
+    .eq('id', customerId)
+    .single()
+
+  if (!customer) {
+    return { error: '対象の顧客が見つかりませんでした' }
+  }
+
+  // 安全チェック: 今日の日付ならこの機能で削除してはいけない（誤操作防止）
+  if (customer.last_visit_date === today) {
+    return {
+      error:
+        '本日のチェックインです。「チェックイン中」タブから削除してください。',
+    }
+  }
+
+  // 前回の実来店日（visit_history.visit_date の最大値）を取得
+  const { data: prevVisits } = await admin
+    .from('visit_history')
+    .select('visit_date')
+    .eq('customer_id', customerId)
+    .order('visit_date', { ascending: false })
+    .limit(1)
+
+  const previousVisitDate = prevVisits?.[0]?.visit_date || null
+
+  // customer.last_visit_date を前回の実来店日に戻す
+  const { error } = await admin
+    .from('customer')
+    .update({
+      last_visit_date: previousVisitDate,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', customerId)
+
+  if (error) {
+    return { error: `削除に失敗しました: ${error.message}` }
+  }
+
+  return { success: true }
 }
