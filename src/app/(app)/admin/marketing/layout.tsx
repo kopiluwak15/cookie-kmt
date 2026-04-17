@@ -3,9 +3,8 @@
 import { TabNavLayout } from '@/components/tab-nav-layout'
 
 const tabs = [
-  { href: '/admin/marketing/campaigns', label: 'キャンペーン' },
   { href: '/admin/marketing/coupons', label: 'クーポン' },
-  { href: '/admin/marketing/qr-codes', label: 'QRコード' },
+  { href: '/admin/marketing/campaigns', label: 'キャンペーン' },
   { href: '/admin/marketing/line', label: 'LINE配信設定' },
 ]
 

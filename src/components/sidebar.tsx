@@ -31,12 +31,12 @@ const staffNav = [
 // 管理者用ナビゲーション（グループ化）
 const adminNav = [
   { href: '/admin/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
-  { href: '/admin/customers', label: '顧客管理', icon: Users },
   { href: '/admin/analytics/sales', label: '売上・分析', icon: TrendingUp },
+  { href: '/admin/marketing/coupons', label: '集客管理', icon: Megaphone },
+  { href: '/admin/customers', label: '顧客管理', icon: Users },
   { href: '/admin/staff', label: 'スタッフ管理', icon: UserCog },
   { href: '/admin/labor-management/announcements', label: '労務管理', icon: Clock },
   { href: '/admin/store-settings/stores', label: '店舗・メニュー', icon: Building2 },
-  { href: '/admin/marketing/campaigns', label: '集客', icon: Megaphone },
   { href: '/admin/settings/chemicals', label: '設定', icon: Settings },
 ]
 
@@ -45,7 +45,7 @@ const adminGroupPrefixes: Record<string, string> = {
   '/admin/analytics/sales': '/admin/analytics',
   '/admin/labor-management/announcements': '/admin/labor-management',
   '/admin/store-settings/stores': '/admin/store-settings',
-  '/admin/marketing/campaigns': '/admin/marketing',
+  '/admin/marketing/coupons': '/admin/marketing',
   '/admin/settings/chemicals': '/admin/settings',
 }
 
