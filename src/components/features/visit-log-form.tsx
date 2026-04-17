@@ -116,6 +116,13 @@ export function VisitLogForm({
   const [selectedStyle, setSelectedStyle] = useState<StyleSetting | null>(null)
   const [selectedGender, setSelectedGender] = useState<'male' | 'female' | null>(null)
   const [selectedMenus, setSelectedMenus] = useState<ServiceMenuItem[]>([])
+  // 来店日（手動指定可）デフォルトは今日(JST)
+  const todayJst = useMemo(
+    () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    []
+  )
+  const [visitDate, setVisitDate] = useState<string>(todayJst)
+  const isPastVisitDate = visitDate !== todayJst
   const [checkinTime, setCheckinTime] = useState('')
   const [checkoutTime, setCheckoutTime] = useState('')
   const [price, setPrice] = useState('')
@@ -242,15 +249,15 @@ export function VisitLogForm({
       }
       formData.set('staff_name', currentStaffName)
       formData.set('expected_duration_minutes', String(totalEstimatedMinutes))
+      // 来店日（手動指定）
+      formData.set('visit_date', visitDate)
 
-      // 来店・退店時刻をISO文字列に変換
+      // 来店・退店時刻は「来店日」+ 時刻で組み立てる
       if (checkinTime) {
-        const today = new Date().toISOString().split('T')[0]
-        formData.set('checkin_at', `${today}T${checkinTime}:00`)
+        formData.set('checkin_at', `${visitDate}T${checkinTime}:00`)
       }
       if (checkoutTime) {
-        const today = new Date().toISOString().split('T')[0]
-        formData.set('checkout_at', `${today}T${checkoutTime}:00`)
+        formData.set('checkout_at', `${visitDate}T${checkoutTime}:00`)
       }
       if (price) {
         formData.set('price', price)
@@ -354,6 +361,45 @@ export function VisitLogForm({
             selectedCustomer={selectedCustomer}
             checkedInOnly
           />
+        </div>
+
+        {/* 来店日（手動指定可・今日と異なる場合は赤表示） */}
+        <div className="space-y-2">
+          <Label className="text-base font-semibold" htmlFor="visit_date">
+            来店日
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              入力日: {todayJst}
+            </span>
+          </Label>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input
+              id="visit_date"
+              type="date"
+              value={visitDate}
+              max={todayJst}
+              onChange={(e) => setVisitDate(e.target.value || todayJst)}
+              className={`w-[180px] ${isPastVisitDate ? 'text-red-600 border-red-400 font-semibold' : ''}`}
+            />
+            {isPastVisitDate && (
+              <Badge variant="outline" className="border-red-500 text-red-700 bg-red-50">
+                ⚠ 過去日付（遡及入力）
+              </Badge>
+            )}
+            {isPastVisitDate && (
+              <button
+                type="button"
+                onClick={() => setVisitDate(todayJst)}
+                className="text-xs text-muted-foreground hover:text-blue-600 underline"
+              >
+                今日に戻す
+              </button>
+            )}
+          </div>
+          {isPastVisitDate && (
+            <p className="text-xs text-red-600">
+              遡及入力モードです。お礼LINEは自動送信されません。
+            </p>
+          )}
         </div>
 
         {/* サービスメニュー（カテゴリタブ + 複数選択） */}

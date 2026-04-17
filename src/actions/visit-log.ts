@@ -18,6 +18,8 @@ export async function createVisitLog(formData: FormData) {
   const priceStr = formData.get('price') as string | null
   const expectedDurationStr = formData.get('expected_duration_minutes') as string | null
   const notes = formData.get('notes') as string | null
+  // 来店日（手動指定）。未指定なら今日を使う（後方互換）
+  const visitDateRaw = formData.get('visit_date') as string | null
 
   // 症例データ（任意）
   const concernTagsRaw = formData.get('concern_tags') as string | null
@@ -41,18 +43,23 @@ export async function createVisitLog(formData: FormData) {
     return { error: '必須項目を入力してください' }
   }
 
-  // 重複チェック: 同一顧客・同日の施術ログが既にある場合はエラー
+  // 来店日を決定（YYYY-MM-DD形式のバリデーション）
   const today = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const isValidDateFormat = visitDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(visitDateRaw)
+  const effectiveVisitDate = isValidDateFormat ? visitDateRaw! : today
+  const isPastDate = effectiveVisitDate < today
+
+  // 重複チェック: 同一顧客・同日の施術ログが既にある場合はエラー
   const { data: existingLog } = await supabase
     .from('visit_history')
     .select('id')
     .eq('customer_id', customerId)
-    .eq('visit_date', today)
+    .eq('visit_date', effectiveVisitDate)
     .limit(1)
     .single()
 
   if (existingLog) {
-    return { error: 'この顧客の本日の施術ログは既に入力されています' }
+    return { error: `この顧客の${effectiveVisitDate === today ? '本日' : effectiveVisitDate}の施術ログは既に入力されています` }
   }
 
   // 有効な来店周期を取得（スタイル選択時のみ）
@@ -73,6 +80,10 @@ export async function createVisitLog(formData: FormData) {
     service_menu: serviceMenu,
     staff_name: staffName,
     visit_cycle_days: visitCycleDays,
+  }
+  // 来店日が今日と異なる場合のみ明示設定（今日ならDBデフォルト CURRENT_DATE に任せる）
+  if (effectiveVisitDate !== today) {
+    insertData.visit_date = effectiveVisitDate
   }
   if (styleCategoryId) insertData.style_category_id = styleCategoryId
   if (checkinAt) insertData.checkin_at = checkinAt
@@ -110,10 +121,13 @@ export async function createVisitLog(formData: FormData) {
   }
 
   // サンキューLINE送信 (非同期で実行、エラーはログのみ)
-  try {
-    await sendThankYouLine(customerId, visit.id, styleCategoryId, visitCycleDays, hasConceptMenu)
-  } catch (e) {
-    console.error('サンキューLINE送信エラー:', e)
+  // 過去日付の遡及入力時はお礼LINEを送信しない（受け手が混乱するため）
+  if (!isPastDate) {
+    try {
+      await sendThankYouLine(customerId, visit.id, styleCategoryId, visitCycleDays, hasConceptMenu)
+    } catch (e) {
+      console.error('サンキューLINE送信エラー:', e)
+    }
   }
 
   // 症例レコード作成 + AI要約（任意、空なら何もしない）
