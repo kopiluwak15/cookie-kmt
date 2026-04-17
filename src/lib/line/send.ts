@@ -9,20 +9,33 @@ export async function sendThankYouLine(
   cycleDays: number,
   isConcept: boolean = false
 ) {
-  const templateType: 'thank_you' | 'thank_you_concept' = isConcept
-    ? 'thank_you_concept'
-    : 'thank_you'
   const supabase = createAdminClient()
 
-  // 顧客情報を取得
+  // 顧客情報を取得（total_visits も取得して再来店判定に使用）
   const { data: customer } = await supabase
     .from('customer')
-    .select('name, line_user_id, line_blocked')
+    .select('name, line_user_id, line_blocked, total_visits')
     .eq('id', customerId)
     .single()
 
   if (!customer?.line_user_id || customer.line_blocked) {
     return // LINE未登録またはブロック済み
+  }
+
+  // テンプレート種別の判定:
+  //   - 2回目以降来店: thank_you_repeat（再サンキュー）
+  //   - 初回 × コンセプトメニュー: thank_you_concept
+  //   - 初回 × レギュラー: thank_you
+  // ※ thank_you_repeat テンプレートが DB に無い場合は thank_you にフォールバック
+  const totalVisits = customer.total_visits ?? 1
+  const isRepeatVisit = totalVisits > 1
+  let templateType: 'thank_you' | 'thank_you_concept' | 'thank_you_repeat'
+  if (isRepeatVisit) {
+    templateType = 'thank_you_repeat'
+  } else if (isConcept) {
+    templateType = 'thank_you_concept'
+  } else {
+    templateType = 'thank_you'
   }
 
   // スタイル名を取得（スタイル選択時のみ）
@@ -56,11 +69,22 @@ export async function sendThankYouLine(
   const bookingUrl = setting?.value || ''
 
   // DBテンプレートを取得
-  const { data: template } = await supabase
+  let { data: template } = await supabase
     .from('line_template_settings')
     .select('body_text, is_active')
     .eq('template_type', templateType)
-    .single()
+    .maybeSingle()
+
+  // thank_you_repeat が未登録なら thank_you にフォールバック（安全策）
+  if (!template && templateType === 'thank_you_repeat') {
+    const fb = await supabase
+      .from('line_template_settings')
+      .select('body_text, is_active')
+      .eq('template_type', 'thank_you')
+      .maybeSingle()
+    template = fb.data
+    templateType = 'thank_you'
+  }
 
   // 次回目安来店日を算出（JST、X月Y日形式）
   const jstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)

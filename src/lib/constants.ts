@@ -4,6 +4,7 @@ export const APP_DESCRIPTION = '顧客管理・リピート促進CRMシステム
 export const MESSAGE_TYPE_LABELS: Record<string, string> = {
   thank_you: 'サンキューLINE',
   thank_you_concept: 'コンセプト用サンキュー',
+  thank_you_repeat: '再サンキュー',
   reminder1: 'リマインド①',
   reminder2: 'リマインド②',
   dormant: '休眠顧客LINE',

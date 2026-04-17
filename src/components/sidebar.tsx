@@ -16,6 +16,7 @@ import {
   UserCircle,
   User,
   MessageSquareHeart,
+  MessageCircle,
 } from 'lucide-react'
 
 // スタッフ用ナビゲーション
@@ -33,6 +34,7 @@ const adminNav = [
   { href: '/admin/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
   { href: '/admin/analytics/sales', label: '売上・分析', icon: TrendingUp },
   { href: '/admin/marketing/coupons', label: '集客管理', icon: Megaphone },
+  { href: '/admin/line-delivery/thank-you', label: 'LINE配信', icon: MessageCircle },
   { href: '/admin/customers', label: '顧客管理', icon: Users },
   { href: '/admin/staff', label: 'スタッフ管理', icon: UserCog },
   { href: '/admin/labor-management/announcements', label: '労務管理', icon: Clock },
@@ -46,6 +48,7 @@ const adminGroupPrefixes: Record<string, string> = {
   '/admin/labor-management/announcements': '/admin/labor-management',
   '/admin/store-settings/stores': '/admin/store-settings',
   '/admin/marketing/coupons': '/admin/marketing',
+  '/admin/line-delivery/thank-you': '/admin/line-delivery',
   '/admin/settings/chemicals': '/admin/settings',
 }
 
