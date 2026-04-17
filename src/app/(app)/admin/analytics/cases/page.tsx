@@ -3,6 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Sparkles, Target, TrendingUp, Layers } from 'lucide-react'
 
+// 症例データはリアルタイムで反映するためキャッシュ無効化
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const isSupabaseConfigured = !!(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
