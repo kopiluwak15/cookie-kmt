@@ -12,16 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { PinDialog } from '@/components/features/pin-dialog'
 import Link from 'next/link'
 import { Loader2, RefreshCw, AlertTriangle, FilePenLine, Trash2 } from 'lucide-react'
 import {
@@ -53,23 +44,21 @@ export default function PendingVisitLogPage() {
     fetchData()
   }, [fetchData])
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
+  const handleDeleteWithPin = async (pin: string) => {
+    if (!deleteTarget) return { error: '対象が選択されていません' }
     setDeleting(deleteTarget.customer_id)
     try {
-      const result = await deletePendingVisitLog(deleteTarget.customer_id)
+      const result = await deletePendingVisitLog(deleteTarget.customer_id, pin)
       if (result.success) {
         setCustomers((prev) =>
           prev.filter((c) => c.customer_id !== deleteTarget.customer_id)
         )
-      } else {
-        alert(result.error || '削除に失敗しました')
+        // 成功時はダイアログ側で閉じるので setDeleteTarget は次の useEffect で処理
+        return { success: true }
       }
-    } catch {
-      alert('削除に失敗しました')
+      return { error: result.error || '削除に失敗しました' }
     } finally {
       setDeleting(null)
-      setDeleteTarget(null)
     }
   }
 
@@ -152,53 +141,30 @@ export default function PendingVisitLogPage() {
         </div>
       )}
 
-      {/* 削除確認ダイアログ */}
-      <AlertDialog
+      {/* 削除確認＋PIN認証ダイアログ */}
+      <PinDialog
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>ログ未入力レコードを削除</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget && (
-                <>
-                  <span className="font-medium text-foreground">
-                    {deleteTarget.customer_code || '---'} {deleteTarget.name}
-                  </span>
-                  {' '}のチェックイン（{deleteTarget.checkin_date}）を削除します。
-                  <br />
-                  <br />
-                  顧客の最終来店日を「前回の実来店日」または「なし」に戻します。
-                  <span className="block mt-1 text-xs">
-                    ※ 施術履歴（visit_history）には一切影響しません。
-                    ゴーストチェックインの取り消し用途です。
-                  </span>
-                  <br />
-                  この操作は取り消せません。
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
-              disabled={!!deleting}
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  削除中...
-                </>
-              ) : (
-                '削除する'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="ログ未入力レコードを削除"
+        description={
+          deleteTarget && (
+            <>
+              <span className="font-medium text-foreground">
+                {deleteTarget.customer_code || '---'} {deleteTarget.name}
+              </span>{' '}
+              のチェックイン（{deleteTarget.checkin_date}）を削除します。
+              <br />
+              <br />
+              顧客の最終来店日を「前回の実来店日」または「なし」に戻します。
+              <span className="block mt-1 text-xs">
+                ※ 施術履歴（visit_history）には一切影響しません。ゴーストチェックインの取り消し用途です。
+              </span>
+            </>
+          )
+        }
+        onConfirm={handleDeleteWithPin}
+        confirmLabel="削除する"
+      />
     </div>
   )
 }

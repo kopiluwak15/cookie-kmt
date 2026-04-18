@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedStaffInfo } from '@/lib/cached-auth'
+import { verifyAdminPin, isAdminPinConfigured } from './admin-security'
 
 export interface PendingVisitLogCustomer {
   customer_id: string
@@ -81,11 +82,22 @@ export async function getPendingVisitLogCustomers(): Promise<PendingVisitLogCust
  *   - 他の visit_history が無い場合: NULL にする
  */
 export async function deletePendingVisitLog(
-  customerId: string
+  customerId: string,
+  pin: string
 ): Promise<{ success?: boolean; error?: string }> {
   const staff = await getCachedStaffInfo()
   if (!staff || staff.role !== 'admin') {
     return { error: 'この操作は管理者のみ実行できます' }
+  }
+
+  // PIN認証（未設定の場合は設定を促す）
+  if (!(await isAdminPinConfigured())) {
+    return {
+      error: '管理者PINが未設定です。「設定 → システム設定」から先にPINを登録してください。',
+    }
+  }
+  if (!(await verifyAdminPin(pin))) {
+    return { error: 'PINが正しくありません' }
   }
 
   const supabase = await createClient()
