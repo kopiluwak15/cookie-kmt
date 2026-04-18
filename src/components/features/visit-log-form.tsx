@@ -73,8 +73,10 @@ const CATEGORY_ORDER = [
 ]
 
 function getCurrentTimeString(): string {
+  // 端末のタイムゾーンに依存せず JST の現在時刻を返す
   const now = new Date()
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000)
+  return `${String(jst.getUTCHours()).padStart(2, '0')}:${String(jst.getUTCMinutes()).padStart(2, '0')}`
 }
 
 function calcDurationMinutes(checkin: string, checkout: string): number | null {
@@ -252,12 +254,13 @@ export function VisitLogForm({
       // 来店日（手動指定）
       formData.set('visit_date', visitDate)
 
-      // 来店・退店時刻は「来店日」+ 時刻で組み立てる
+      // 来店・退店時刻は「来店日」+ 時刻で組み立てる（JST として明示）
+      // +09:00 を付けないとDBがUTC解釈して9時間ずれる
       if (checkinTime) {
-        formData.set('checkin_at', `${visitDate}T${checkinTime}:00`)
+        formData.set('checkin_at', `${visitDate}T${checkinTime}:00+09:00`)
       }
       if (checkoutTime) {
-        formData.set('checkout_at', `${visitDate}T${checkoutTime}:00`)
+        formData.set('checkout_at', `${visitDate}T${checkoutTime}:00+09:00`)
       }
       if (price) {
         formData.set('price', price)

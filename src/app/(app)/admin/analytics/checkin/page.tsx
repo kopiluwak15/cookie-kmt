@@ -218,8 +218,11 @@ export default function CheckinPage() {
 
 function formatTime(isoStr: string | null): string {
   if (!isoStr) return '-'
+  // JST（UTC+9）で表示するため、UTCメソッドを使って手動変換
+  // （サーバー/ブラウザのタイムゾーンに依存しない）
   const d = new Date(isoStr)
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+  const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+  return `${String(jst.getUTCHours()).padStart(2, '0')}:${String(jst.getUTCMinutes()).padStart(2, '0')}`
 }
 
 function formatDuration(checkin: string | null, checkout: string | null): string {

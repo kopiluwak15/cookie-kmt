@@ -77,12 +77,15 @@ export function EditVisitButton({
       setSelectedStyleId(visit.style_category_id || null)
       setStaffName(visit.staff_name || '')
       if (visit.checkin_at) {
+        // 端末のタイムゾーンに依存せず JST で表示
         const d = new Date(visit.checkin_at)
-        setCheckinTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
+        const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+        setCheckinTime(`${String(jst.getUTCHours()).padStart(2, '0')}:${String(jst.getUTCMinutes()).padStart(2, '0')}`)
       }
       if (visit.checkout_at) {
         const d = new Date(visit.checkout_at)
-        setCheckoutTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`)
+        const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+        setCheckoutTime(`${String(jst.getUTCHours()).padStart(2, '0')}:${String(jst.getUTCMinutes()).padStart(2, '0')}`)
       }
       setPrice(visit.price ? String(visit.price) : '')
       setEditOpen(true)
@@ -128,13 +131,14 @@ export function EditVisitButton({
         return sum + (menu?.estimated_minutes || 0)
       }, 0)
 
+      // JSTとして明示（+09:00）。付けないとDBがUTC解釈してずれる
       const result = await updateVisitLog(visitId, {
         customer_id: selectedCustomer.id,
         service_menu: selectedMenus.join(', '),
         style_category_id: selectedStyleId,
         staff_name: staffName,
-        checkin_at: checkinTime ? `${today}T${checkinTime}:00` : null,
-        checkout_at: checkoutTime ? `${today}T${checkoutTime}:00` : null,
+        checkin_at: checkinTime ? `${today}T${checkinTime}:00+09:00` : null,
+        checkout_at: checkoutTime ? `${today}T${checkoutTime}:00+09:00` : null,
         price: price ? parseInt(price, 10) : null,
         expected_duration_minutes: totalEstimated || null,
       })
