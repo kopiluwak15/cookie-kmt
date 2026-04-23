@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { pushMessage } from '@/lib/line/client'
 import { buildDormantMessage } from '@/lib/line/templates'
+import { resolveBookingUrl } from '@/lib/line/booking-url'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -16,13 +17,15 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient()
   let dormantSent = 0
 
-  // 予約URLと平日案内テキストを取得
+  // 予約URLを解決（dormant専用 → 共通の順）
+  const bookingUrl = await resolveBookingUrl(supabase, 'dormant')
+
+  // 平日案内テキストを取得
   const { data: settings } = await supabase
     .from('global_settings')
     .select('key, value')
-    .in('key', ['booking_url', 'weekday_availability_text'])
+    .eq('key', 'weekday_availability_text')
 
-  const bookingUrl = settings?.find((s) => s.key === 'booking_url')?.value || ''
   const weekdayText =
     settings?.find((s) => s.key === 'weekday_availability_text')?.value ||
     '平日は比較的空きがございます。お気軽にご予約ください。'

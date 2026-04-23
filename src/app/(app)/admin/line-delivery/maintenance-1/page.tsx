@@ -3,7 +3,7 @@
 import { LineTemplateEditor } from '@/components/features/line-template-editor'
 import { LineGlobalSetting } from '@/components/features/line-global-setting'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Send } from 'lucide-react'
+import { Send, Link as LinkIcon } from 'lucide-react'
 
 export default function Maintenance1Page() {
   return (
@@ -23,6 +23,27 @@ export default function Maintenance1Page() {
         showTicketVar
         description="コンセプトメニュー1回目のメンテナンスチケット案内です"
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <LinkIcon className="h-4 w-4 text-muted-foreground" />
+            メンテナンス① 予約URL
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            メンテナンス専用のHPBメニューURLを設定すると、予約フォームが自動的にその料金で開きます。
+            空の場合は共通予約URL（サンキューのページ参照）が使われます
+          </p>
+        </CardHeader>
+        <CardContent>
+          <LineGlobalSetting
+            settingKey="booking_url_maintenance_1"
+            label="メンテナンス① 専用予約URL（任意）"
+            description="例: HPB のメンテナンス専用メニューURL"
+            placeholder="https://..."
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

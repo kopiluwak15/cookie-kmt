@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { pushMessage } from './client'
 import { buildThankYouMessage } from './templates'
+import { resolveBookingUrl } from './booking-url'
 
 export async function sendThankYouLine(
   customerId: string,
@@ -59,14 +60,8 @@ export async function sendThankYouLine(
     styleName = visit?.service_menu || ''
   }
 
-  // 予約URLを取得
-  const { data: setting } = await supabase
-    .from('global_settings')
-    .select('value')
-    .eq('key', 'booking_url')
-    .single()
-
-  const bookingUrl = setting?.value || ''
+  // 予約URLを取得（テンプレート別URL → 共通URLの順で解決）
+  const bookingUrl = await resolveBookingUrl(supabase, templateType)
 
   // DBテンプレートを取得
   let { data: template } = await supabase

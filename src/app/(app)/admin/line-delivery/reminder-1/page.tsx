@@ -1,7 +1,9 @@
 'use client'
 
 import { LineTemplateEditor } from '@/components/features/line-template-editor'
-import { Clock } from 'lucide-react'
+import { LineGlobalSetting } from '@/components/features/line-global-setting'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Clock, Link as LinkIcon } from 'lucide-react'
 
 export default function Reminder1Page() {
   return (
@@ -20,6 +22,26 @@ export default function Reminder1Page() {
         templateType="reminder1"
         description="スタイル設定で定めた reminder1_days 後に送信される1回目のリマインドです"
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <LinkIcon className="h-4 w-4 text-muted-foreground" />
+            予約URL 設定
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            空の場合は共通予約URL（サンキューのページ参照）が使われます
+          </p>
+        </CardHeader>
+        <CardContent>
+          <LineGlobalSetting
+            settingKey="booking_url_reminder1"
+            label="リマインド① 専用予約URL（任意）"
+            description="このテンプレートだけ別URLを使う場合に指定"
+            placeholder="https://..."
+          />
+        </CardContent>
+      </Card>
     </div>
   )
 }

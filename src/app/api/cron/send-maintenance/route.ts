@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { pushMessage } from '@/lib/line/client'
 import { buildMaintenanceMessage } from '@/lib/line/templates'
+import { resolveBookingUrl } from '@/lib/line/booking-url'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -22,12 +23,17 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // 設定を取得
+  // 予約URLをテンプレート別に解決（メンテナンス①/②は別URL設定可）
+  const [m1Url, m2Url] = await Promise.all([
+    resolveBookingUrl(supabase, 'maintenance_1'),
+    resolveBookingUrl(supabase, 'maintenance_2'),
+  ])
+
+  // 配信タイミング等の設定を取得
   const { data: settings } = await supabase
     .from('global_settings')
     .select('key, value')
     .in('key', [
-      'booking_url',
       'maintenance_1_days_after',
       'maintenance_1_validity_days',
       'maintenance_2_days_after',
@@ -35,7 +41,6 @@ export async function GET(request: NextRequest) {
     ])
 
   const settingMap = new Map((settings || []).map((s) => [s.key, s.value]))
-  const bookingUrl = settingMap.get('booking_url') || ''
   const m1DaysAfter = parseInt(settingMap.get('maintenance_1_days_after') || '30', 10)
   const m1Validity = parseInt(settingMap.get('maintenance_1_validity_days') || '14', 10)
   const m2DaysAfter = parseInt(settingMap.get('maintenance_2_days_after') || '60', 10)
@@ -61,7 +66,7 @@ export async function GET(request: NextRequest) {
     templateActive: m1Template?.is_active !== false,
     bodyText: m1Template?.body_text || undefined,
     ticketLabel: 'メンテナンスチケット①',
-    bookingUrl,
+    bookingUrl: m1Url,
     onSent: () => { m1Sent++ },
   })
 
@@ -73,7 +78,7 @@ export async function GET(request: NextRequest) {
     templateActive: m2Template?.is_active !== false,
     bodyText: m2Template?.body_text || undefined,
     ticketLabel: 'メンテナンスチケット②',
-    bookingUrl,
+    bookingUrl: m2Url,
     onSent: () => { m2Sent++ },
   })
 

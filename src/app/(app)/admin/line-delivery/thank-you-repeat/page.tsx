@@ -1,8 +1,9 @@
 'use client'
 
 import { LineTemplateEditor } from '@/components/features/line-template-editor'
-import { Card, CardContent } from '@/components/ui/card'
-import { Send, AlertCircle } from 'lucide-react'
+import { LineGlobalSetting } from '@/components/features/line-global-setting'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Send, AlertCircle, Link as LinkIcon } from 'lucide-react'
 
 export default function ThankYouRepeatPage() {
   return (
@@ -33,6 +34,26 @@ export default function ThankYouRepeatPage() {
         templateType="thank_you_repeat"
         description="再来店のお客様向けの、感謝と次回のご案内メッセージです"
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <LinkIcon className="h-4 w-4 text-muted-foreground" />
+            予約URL 設定
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            空の場合は共通予約URL（サンキューのページ参照）が使われます
+          </p>
+        </CardHeader>
+        <CardContent>
+          <LineGlobalSetting
+            settingKey="booking_url_thank_you_repeat"
+            label="再サンキュー 専用予約URL（任意）"
+            description="このテンプレートだけ別URLを使う場合に指定"
+            placeholder="https://..."
+          />
+        </CardContent>
+      </Card>
     </div>
   )
 }

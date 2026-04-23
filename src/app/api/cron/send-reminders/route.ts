@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { pushMessage } from '@/lib/line/client'
 import { buildReminder1Message, buildReminder2Message } from '@/lib/line/templates'
+import { resolveBookingUrl } from '@/lib/line/booking-url'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -17,13 +18,11 @@ export async function GET(request: NextRequest) {
   let reminder1Sent = 0
   let reminder2Sent = 0
 
-  // 予約URLを取得
-  const { data: bookingSetting } = await supabase
-    .from('global_settings')
-    .select('value')
-    .eq('key', 'booking_url')
-    .single()
-  const bookingUrl = bookingSetting?.value || ''
+  // 予約URLを取得（テンプレート別URL → 共通URLの順で解決）
+  const [reminder1Url, reminder2Url] = await Promise.all([
+    resolveBookingUrl(supabase, 'reminder1'),
+    resolveBookingUrl(supabase, 'reminder2'),
+  ])
 
   // テンプレートを取得（リマインド①②両方）
   const { data: templates } = await supabase
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
           customerName: target.customer_name,
           styleName: target.style_name,
           cycleDays: target.reminder1_days,
-          bookingUrl,
+          bookingUrl: reminder1Url,
           bodyText: reminder1Template?.body_text || undefined,
         })
 
@@ -99,7 +98,7 @@ export async function GET(request: NextRequest) {
         const message = buildReminder2Message({
           customerName: target.customer_name,
           couponText,
-          bookingUrl,
+          bookingUrl: reminder2Url,
           bodyText: reminder2Template?.body_text || undefined,
         })
 
