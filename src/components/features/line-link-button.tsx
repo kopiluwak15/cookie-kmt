@@ -17,20 +17,22 @@ export function LineLinkButton({ isLinked, authUserId }: LineLinkButtonProps) {
 
   const hasChannelId = !!process.env.NEXT_PUBLIC_LINE_LOGIN_CHANNEL_ID
 
-  // コールバック結果を処理
+  // コールバック結果を処理（管理者/スタッフどちらのパスでも動作）
   useEffect(() => {
     const lineLinked = searchParams.get('line_linked')
     const lineError = searchParams.get('line_error')
 
     if (lineLinked === '1') {
       setLinked(true)
-      // URLパラメータをクリーン
-      window.history.replaceState({}, '', '/staff/performance')
+      // URLパラメータをクリーン（現在のパスを維持）
+      const cleanUrl = typeof window !== 'undefined' ? window.location.pathname : ''
+      window.history.replaceState({}, '', cleanUrl)
     }
 
     if (lineError) {
       setError(getLineErrorMessage(lineError))
-      window.history.replaceState({}, '', '/staff/performance')
+      const cleanUrl = typeof window !== 'undefined' ? window.location.pathname : ''
+      window.history.replaceState({}, '', cleanUrl)
     }
   }, [searchParams])
 

@@ -124,12 +124,26 @@ export async function GET(request: NextRequest) {
  * stateパラメータに含まれるauth_user_idを使用（Cookie不要）
  */
 async function handleLink(request: NextRequest, lineUserId: string, authUserId: string) {
-  if (!authUserId) {
-    return NextResponse.redirect(new URL('/staff/performance?line_error=not_logged_in', request.url))
+  // ロールに応じた戻り先パスを返すヘルパー
+  // （事前にスタッフレコードからroleを引いて、admin → /admin/settings/account, それ以外 → /staff/performance）
+  const adminSupabase = createAdminClient()
+
+  // 先にロールを取得（エラーハンドリングの戻り先にも利用）
+  let returnPath = '/staff/performance'
+  if (authUserId) {
+    const { data: roleRow } = await adminSupabase
+      .from('staff')
+      .select('role')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle()
+    if (roleRow?.role === 'admin') {
+      returnPath = '/admin/settings/account'
+    }
   }
 
-  // DB操作はAdminクライアント（RLSにUPDATEポリシーがないため）
-  const adminSupabase = createAdminClient()
+  if (!authUserId) {
+    return NextResponse.redirect(new URL(`${returnPath}?line_error=not_logged_in`, request.url))
+  }
 
   // 既に他のスタッフが使用していないかチェック
   const { data: existing } = await adminSupabase
@@ -137,10 +151,10 @@ async function handleLink(request: NextRequest, lineUserId: string, authUserId: 
     .select('id')
     .eq('line_user_id', lineUserId)
     .neq('auth_user_id', authUserId)
-    .single()
+    .maybeSingle()
 
   if (existing) {
-    return NextResponse.redirect(new URL('/staff/performance?line_error=already_used', request.url))
+    return NextResponse.redirect(new URL(`${returnPath}?line_error=already_used`, request.url))
   }
 
   // スタッフの line_user_id を更新
@@ -153,11 +167,11 @@ async function handleLink(request: NextRequest, lineUserId: string, authUserId: 
 
   if (updateError || !updated) {
     console.error('[LINE Link] update failed:', updateError?.message || 'no matching staff')
-    return NextResponse.redirect(new URL('/staff/performance?line_error=update_failed', request.url))
+    return NextResponse.redirect(new URL(`${returnPath}?line_error=update_failed`, request.url))
   }
 
-  console.log('[LINE Link] success: staffId=', updated.id, 'lineUserId=', lineUserId)
-  return NextResponse.redirect(new URL('/staff/performance?line_linked=1', request.url))
+  console.log('[LINE Link] success: staffId=', updated.id, 'lineUserId=', lineUserId, 'returnPath=', returnPath)
+  return NextResponse.redirect(new URL(`${returnPath}?line_linked=1`, request.url))
 }
 
 /**
