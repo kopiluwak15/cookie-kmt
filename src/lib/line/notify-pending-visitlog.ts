@@ -89,7 +89,7 @@ export async function notifyPendingVisitLogIfAllOut(): Promise<
     `【施術ログ未入力のお知らせ】\n` +
     `${separator}\n` +
     lines.join('\n') +
-    `\n\n担当は入力をお願いします。\n` +
+    `\n\n担当者は至急入力し、完了後にこのトークへ報告してください。\n` +
     separator
 
   // ---- 5. アクティブスタッフ全員（LINE登録済み）に送信 ----
