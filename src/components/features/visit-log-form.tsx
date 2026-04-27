@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { createVisitLog } from '@/actions/visit-log'
+import { enqueueOffline, formDataToPayload } from '@/lib/offline/queue'
 import { CustomerSearch } from './customer-search'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -317,7 +318,27 @@ export function VisitLogForm({
         formData.set('notes', noteParts.join(' / '))
       }
 
-      const result = await createVisitLog(formData)
+      // ネットワーク失敗時はオフラインキューに保存（手動同期用）
+      let result: Awaited<ReturnType<typeof createVisitLog>> | null = null
+      try {
+        result = await createVisitLog(formData)
+      } catch (e) {
+        // 通信エラー → オフライン保存
+        const summary = `${selectedCustomer.customer_code || '---'} ${selectedCustomer.name} / ${selectedMenus.map((m) => m.name).join(', ')}`
+        enqueueOffline({
+          type: 'visit_log',
+          payload: formDataToPayload(formData),
+          summary,
+        })
+        toast(
+          'オフラインのため端末内に一時保存しました。「オフラインログ」から後で送信してください。',
+          { duration: 6000 }
+        )
+        // フォームはリセットせず残す（再入力不要、ユーザー判断で再送/破棄）
+        const err = e as Error
+        console.warn('[visit-log] offline saved due to network error:', err.message)
+        return
+      }
 
       if (result.error) {
         toast.error(result.error)

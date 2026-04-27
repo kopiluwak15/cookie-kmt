@@ -7,6 +7,7 @@ const tabs = [
   { href: '/admin/settings/system', label: 'システム設定' },
   { href: '/admin/settings/employment', label: '雇用形態' },
   { href: '/admin/settings/account', label: 'アカウント' },
+  { href: '/admin/settings/offline-logs', label: 'オフラインログ' },
 ]
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

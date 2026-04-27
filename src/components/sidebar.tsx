@@ -17,7 +17,9 @@ import {
   User,
   MessageSquareHeart,
   MessageCircle,
+  CloudOff,
 } from 'lucide-react'
+import { useOfflineQueueCount } from '@/hooks/use-offline-queue'
 
 // スタッフ用ナビゲーション
 const staffNav = [
@@ -27,6 +29,7 @@ const staffNav = [
   { href: '/staff/store-sales', label: '店舗売上', icon: TrendingUp },
   { href: '/staff/performance', label: 'マイ実績', icon: UserCircle },
   { href: '/staff/mypage', label: 'マイページ', icon: User },
+  { href: '/staff/offline-logs', label: 'オフラインログ', icon: CloudOff, showOfflineBadge: true },
 ]
 
 // 管理者用ナビゲーション（グループ化）
@@ -39,7 +42,7 @@ const adminNav = [
   { href: '/admin/staff', label: 'スタッフ管理', icon: UserCog },
   { href: '/admin/labor-management/announcements', label: '労務管理', icon: Clock },
   { href: '/admin/store-settings/stores', label: '店舗・メニュー', icon: Building2 },
-  { href: '/admin/settings/chemicals', label: '設定', icon: Settings },
+  { href: '/admin/settings/chemicals', label: '設定', icon: Settings, showOfflineBadge: true },
 ]
 
 // グループのプレフィックス（アクティブ判定用）
@@ -58,6 +61,7 @@ interface SidebarProps {
 
 export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname()
+  const offlineCount = useOfflineQueueCount()
 
   const navItems = role === 'admin' ? adminNav : staffNav
 
@@ -79,19 +83,29 @@ export function Sidebar({ role }: SidebarProps) {
         <nav className="flex-1 px-2 py-4 space-y-1">
           {navItems.map((item) => {
             const active = isActive(item.href)
+            const showBadge = item.showOfflineBadge && offlineCount > 0
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors relative',
                   active
                     ? 'bg-gray-700 text-white'
                     : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 )}
               >
                 <item.icon className="h-5 w-5" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {showBadge && (
+                  <span
+                    className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-bold rounded-full bg-red-500 text-white"
+                    aria-label={`未送信 ${offlineCount}件`}
+                    title={`未送信データが${offlineCount}件あります`}
+                  >
+                    {offlineCount > 99 ? '99+' : offlineCount}
+                  </span>
+                )}
               </Link>
             )
           })}
