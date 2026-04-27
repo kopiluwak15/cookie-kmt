@@ -2,12 +2,13 @@
 // /liff/welcome から呼ばれる
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { performStoreGpsCheck } from '@/lib/geo-server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
-  let body: { lineUserId?: string }
+  let body: { lineUserId?: string; lat?: number | null; lng?: number | null }
   try {
     body = await req.json()
   } catch {
@@ -17,6 +18,10 @@ export async function POST(req: Request) {
   if (!body.lineUserId) {
     return NextResponse.json({ error: 'missing_line_user_id' }, { status: 400 })
   }
+
+  // ジオフェンス検証（店舗から離れすぎていれば 403）
+  const gpsCheck = await performStoreGpsCheck(body)
+  if (!gpsCheck.ok) return gpsCheck.response
 
   const supabase = createAdminClient()
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)

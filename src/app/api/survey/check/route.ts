@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { performStoreGpsCheck } from '@/lib/geo-server'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { line_user_id } = await request.json()
+    const body = await request.json()
+    const { line_user_id, lat, lng } = body as {
+      line_user_id?: string
+      lat?: number | null
+      lng?: number | null
+    }
 
     if (!line_user_id) {
       return NextResponse.json(
@@ -13,6 +19,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // ジオフェンス検証（店舗から離れすぎていれば 403）
+    const gpsCheck = await performStoreGpsCheck({ lat, lng })
+    if (!gpsCheck.ok) return gpsCheck.response
 
     const supabase = createAdminClient()
 

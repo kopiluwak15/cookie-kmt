@@ -189,6 +189,17 @@ function LiffRegisterInner() {
   const [lineUserId, setLineUserId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [hydrated, setHydrated] = useState(false)
+  // ジオフェンス用: welcome から渡された座標（フォールバックとして使用）
+  const [coords, setCoords] = useState<{ lat: number | null; lng: number | null }>({
+    lat: null,
+    lng: null,
+  })
+  const [gpsError, setGpsError] = useState<{
+    reason: string
+    message: string
+    distanceMeters?: number
+    radiusMeters?: number
+  } | null>(null)
 
   // 初回マウント時にドラフト復元
   useEffect(() => {
@@ -208,6 +219,15 @@ function LiffRegisterInner() {
     const dn = qDn || sessionStorage.getItem('liff_display_name')
     if (lid) setLineUserId(lid)
     if (dn) setForm((p) => (p.name ? p : { ...p, name: dn }))
+
+    // welcome から引き継いだ座標を保持（GPS二重ゲート用）
+    const qLat = searchParams?.get('lat')
+    const qLng = searchParams?.get('lng')
+    const lat = qLat ? parseFloat(qLat) : NaN
+    const lng = qLng ? parseFloat(qLng) : NaN
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      setCoords({ lat, lng })
+    }
   }, [searchParams])
 
   // ステップ切替時にスクロール位置をリセット
@@ -276,12 +296,30 @@ function LiffRegisterInner() {
     setSubmitting(true)
     setError(null)
     try {
+      // 送信時にも改めて座標取得（welcome → register 移動中に位置がズレた場合の保険）
+      const { getUserCoords } = await import('@/lib/geo-client')
+      const fresh = await getUserCoords()
+      const lat = fresh.lat ?? coords.lat
+      const lng = fresh.lng ?? coords.lng
+
       const res = await fetch('/api/karte', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, todaysWish: [], lineUserId }),
+        body: JSON.stringify({ ...form, todaysWish: [], lineUserId, lat, lng }),
       })
       const json = await res.json()
+
+      // ジオフェンス失敗 → 専用エラー表示
+      if (res.status === 403 && json?.error === 'gps_check_failed') {
+        setGpsError({
+          reason: json.reason,
+          message: json.message,
+          distanceMeters: json.distanceMeters,
+          radiusMeters: json.radiusMeters,
+        })
+        setSubmitting(false)
+        return
+      }
       if (!res.ok || !json.ok) {
         throw new Error(json.error || '送信に失敗しました')
       }
@@ -305,6 +343,45 @@ function LiffRegisterInner() {
       setError(e instanceof Error ? e.message : '送信に失敗しました')
       setSubmitting(false)
     }
+  }
+
+  // ジオフェンス検証エラー画面（店舗外/位置情報不可）
+  if (gpsError) {
+    const isPermissionIssue = gpsError.reason === 'gps_unavailable'
+    return (
+      <main
+        className="bg-gradient-to-b from-rose-50 to-white flex items-center justify-center px-6 py-10"
+        style={{ minHeight: '100dvh' }}
+      >
+        <div className="max-w-sm w-full bg-white rounded-2xl border border-rose-200 shadow-sm p-8 text-center">
+          <h2 className="text-lg font-bold text-stone-900 mb-3">
+            {isPermissionIssue ? '位置情報の許可が必要です' : '店舗内でアクセスしてください'}
+          </h2>
+          <p className="text-sm text-stone-700 leading-relaxed mb-4 whitespace-pre-line">
+            {gpsError.message}
+          </p>
+          {gpsError.distanceMeters != null && gpsError.radiusMeters != null && (
+            <div className="mb-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-xs text-rose-700">
+              現在地まで {gpsError.distanceMeters}m / 許容 {gpsError.radiusMeters}m
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setGpsError(null)
+            }}
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-stone-900 text-white font-semibold active:opacity-80"
+          >
+            戻ってやり直す
+          </button>
+          <p className="mt-6 text-xs text-stone-400 leading-relaxed">
+            {isPermissionIssue
+              ? 'iPhone は「設定 > プライバシー > 位置情報サービス」、Android は「設定 > 位置情報」をオンにしてください。'
+              : '店舗内で再度お試しください。入力内容は保持されています。'}
+          </p>
+        </div>
+      </main>
+    )
   }
 
   // 完了画面

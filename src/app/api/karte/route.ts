@@ -5,6 +5,7 @@
 // - 選択メニューに is_concept があれば isConcept = true を返す
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { performStoreGpsCheck } from '@/lib/geo-server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,6 +32,9 @@ type Body = {
   dislikesOther?: string
   spots: string[]
   selectedMenus: string[] // service_menus.id (uuid)
+  /** ジオフェンス検証用 (LIFF側で取得) */
+  lat?: number | null
+  lng?: number | null
 }
 
 export async function POST(req: Request) {
@@ -47,6 +51,10 @@ export async function POST(req: Request) {
       { status: 400 }
     )
   }
+
+  // ジオフェンス検証（店舗から離れすぎていれば 403）
+  const gpsCheck = await performStoreGpsCheck(body)
+  if (!gpsCheck.ok) return gpsCheck.response
 
   const supabase = createAdminClient()
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)

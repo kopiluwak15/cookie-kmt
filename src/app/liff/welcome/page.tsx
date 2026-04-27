@@ -18,7 +18,8 @@
 import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import liff from '@line/liff'
-import { Loader2, ExternalLink, AlertCircle, UserPlus, RefreshCw } from 'lucide-react'
+import { Loader2, ExternalLink, AlertCircle, UserPlus, RefreshCw, MapPinOff } from 'lucide-react'
+import { getUserCoords } from '@/lib/geo-client'
 
 export default function LiffWelcomePage() {
   return (
@@ -44,6 +45,13 @@ function LiffWelcomeInner() {
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null)
   // ブロック中ユーザー向けのゲート state
   const [blockedGate, setBlockedGate] = useState<{ friendAddUrl: string } | null>(null)
+  // ジオフェンス検証エラー（店舗外/位置取得失敗）
+  const [gpsError, setGpsError] = useState<{
+    reason: string
+    message: string
+    distanceMeters?: number
+    radiusMeters?: number
+  } | null>(null)
 
   const proceedAfterAuth = useCallback(
     async (lid: string, dn: string) => {
@@ -57,18 +65,43 @@ function LiffWelcomeInner() {
         const sc = searchParams?.get('sc') || ''
         targetUrl = `${appUrl}/liff/karte?lid=${encodeURIComponent(lid)}&sc=${encodeURIComponent(sc)}`
       } else {
+        // 顧客チェックインフロー: GPS取得 → /api/karte/check
+        setMessage('位置情報を確認中...')
+        const coords = await getUserCoords()
+
         setMessage('お客様情報を確認中...')
         const res = await fetch('/api/karte/check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lineUserId: lid }),
+          body: JSON.stringify({
+            lineUserId: lid,
+            lat: coords.lat,
+            lng: coords.lng,
+          }),
         })
         const data = await res.json()
+
+        // ジオフェンス失敗 → 専用エラー表示
+        if (res.status === 403 && data?.error === 'gps_check_failed') {
+          setGpsError({
+            reason: data.reason,
+            message: data.message,
+            distanceMeters: data.distanceMeters,
+            radiusMeters: data.radiusMeters,
+          })
+          setMessage('')
+          return
+        }
         if (!res.ok) throw new Error(data.error || '確認に失敗しました')
 
+        // 新規顧客の場合は座標を register ページへ引き継ぐ（GPS二重ゲート用）
         const base = `lid=${encodeURIComponent(lid)}&dn=${encodeURIComponent(dn)}`
+        const coordsParam =
+          coords.lat != null && coords.lng != null
+            ? `&lat=${coords.lat}&lng=${coords.lng}`
+            : ''
         if (!data.exists) {
-          targetUrl = `${appUrl}/liff/register?${base}`
+          targetUrl = `${appUrl}/liff/register?${base}${coordsParam}`
         } else if (mode === 'concept') {
           targetUrl = `${appUrl}/liff/concept?${base}&cid=${encodeURIComponent(data.customerId || '')}`
         } else if (data.needsConcept) {
@@ -142,6 +175,46 @@ function LiffWelcomeInner() {
     }
     run()
   }, [searchParams, proceedAfterAuth])
+
+  // === ジオフェンス検証エラー（店舗外/位置情報不可） ===
+  if (gpsError) {
+    const isPermissionIssue = gpsError.reason === 'gps_unavailable'
+    return (
+      <main
+        className="bg-gradient-to-b from-rose-50 to-white flex items-center justify-center px-6 py-10"
+        style={{ minHeight: '100dvh' }}
+      >
+        <div className="max-w-sm w-full bg-white rounded-2xl border border-rose-200 shadow-sm p-8 text-center">
+          <div className="h-14 w-14 mx-auto mb-4 rounded-full bg-rose-100 flex items-center justify-center">
+            <MapPinOff className="h-7 w-7 text-rose-600" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">
+            {isPermissionIssue ? '位置情報の許可が必要です' : '店舗内でアクセスしてください'}
+          </h2>
+          <p className="text-sm text-gray-700 leading-relaxed mb-6 whitespace-pre-line">
+            {gpsError.message}
+          </p>
+          {gpsError.distanceMeters != null && gpsError.radiusMeters != null && (
+            <div className="mb-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-xs text-rose-700">
+              現在地まで {gpsError.distanceMeters}m / 許容 {gpsError.radiusMeters}m
+            </div>
+          )}
+          <a
+            href={typeof window !== 'undefined' ? window.location.href : '#'}
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-stone-900 text-white font-semibold no-underline active:opacity-80"
+          >
+            <RefreshCw className="h-5 w-5" />
+            再試行
+          </a>
+          <p className="mt-6 text-xs text-gray-400 leading-relaxed">
+            {isPermissionIssue
+              ? 'iPhone は「設定 > プライバシー > 位置情報サービス」、Android は「設定 > 位置情報」をオンにしてください。'
+              : 'お店の中で再度QRコードを読み取るか、上のボタンから再読み込みしてください。'}
+          </p>
+        </div>
+      </main>
+    )
+  }
 
   // === ブロック中ユーザー向けゲート ===
   if (blockedGate) {
