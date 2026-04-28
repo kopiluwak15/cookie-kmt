@@ -2,7 +2,40 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Loader2, CheckCircle2, Clock, MapPin, AlertCircle, Bell } from 'lucide-react'
+import { Loader2, CheckCircle2, Clock, MapPin, AlertCircle, Bell, X } from 'lucide-react'
+
+/**
+ * LIFFウィンドウを閉じる。
+ * - LINE内ブラウザ → liff.closeWindow() で確実に閉じる
+ * - 外部ブラウザ → window.close()（開かれた経路によっては効かない）
+ */
+async function closeLiffWindow() {
+  try {
+    const mod = await import('@line/liff')
+    const liff = mod.default
+    const liffId = process.env.NEXT_PUBLIC_LIFF_ID
+    if (liffId) {
+      try {
+        await liff.init({ liffId })
+      } catch {
+        // 既に初期化済 or 初期化失敗でもcloseWindowは試す
+      }
+    }
+    try {
+      liff.closeWindow()
+      return
+    } catch {
+      // closeWindow失敗時はフォールバックへ
+    }
+  } catch {
+    // import失敗 → フォールバックへ
+  }
+  try {
+    window.close()
+  } catch {
+    // 何もできない場合は静かに無視
+  }
+}
 
 type Mode = 'loading' | 'ready' | 'done' | 'success' | 'error'
 
@@ -92,6 +125,8 @@ function LiffTimecardInner() {
   const [punching, setPunching] = useState(false)
   const [successAction, setSuccessAction] = useState<'check_in' | 'check_out' | null>(null)
   const [successTime, setSuccessTime] = useState('')
+  // 打刻成功画面の自動クローズ用カウントダウン（3秒）
+  const [secondsToClose, setSecondsToClose] = useState(3)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [confirmedIds, setConfirmedIds] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState<string | null>(null)
@@ -177,6 +212,17 @@ function LiffTimecardInner() {
     }
     init()
   }, [])
+
+  // 打刻成功時、3秒カウントダウン → 自動でLIFFを閉じる
+  useEffect(() => {
+    if (mode !== 'success') return
+    if (secondsToClose <= 0) {
+      closeLiffWindow()
+      return
+    }
+    const t = setTimeout(() => setSecondsToClose((s) => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [mode, secondsToClose])
 
   async function handleConfirmAnnouncement(announcementId: string) {
     if (confirming) return
@@ -274,6 +320,23 @@ function LiffTimecardInner() {
             <Clock className="h-5 w-5 text-gray-500 mx-auto mb-2" />
             <p className="text-3xl font-bold text-gray-900 tabular-nums">{successTime}</p>
           </div>
+
+          {/* 閉じるボタン＋自動クローズカウントダウン */}
+          <button
+            type="button"
+            onClick={() => {
+              setSecondsToClose(0) // useEffect 経由で確実に1経路に揃える
+              closeLiffWindow()
+            }}
+            className="w-full mt-6 py-3.5 rounded-xl bg-gray-900 text-white font-semibold inline-flex items-center justify-center gap-2 active:opacity-80"
+          >
+            <X className="h-4 w-4" />
+            閉じる
+          </button>
+          <p className="text-xs text-gray-500 mt-3">
+            {secondsToClose > 0 ? `${secondsToClose}秒後に自動で閉じます` : '閉じています...'}
+          </p>
+
           <p className="text-xs text-gray-400 mt-8">COOKIE 熊本</p>
         </div>
       </main>
