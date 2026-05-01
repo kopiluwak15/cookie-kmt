@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { getTimecard, getStaffForAnnouncement, updateAttendance, deleteAttendance, getGpsEnabled, setGpsEnabled, getRecentAttendance } from '@/actions/labor-management'
-import { PasswordConfirmDialog } from '@/components/features/password-confirm-dialog'
+import { PinDialog } from '@/components/features/pin-dialog'
+import { verifyAdminPin, isAdminPinConfigured } from '@/actions/admin-security'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -59,12 +60,15 @@ export default function TimecardPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editCheckin, setEditCheckin] = useState('')
   const [editCheckout, setEditCheckout] = useState('')
-  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
-  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null)
-  const [passwordDialogTitle, setPasswordDialogTitle] = useState('')
-  const [passwordDialogDesc, setPasswordDialogDesc] = useState('')
-  const [passwordDialogLabel, setPasswordDialogLabel] = useState('確認')
-  const [passwordDialogVariant, setPasswordDialogVariant] = useState<'destructive' | 'default'>('default')
+  // PIN認証ダイアログ（編集開始 / 保存 / 削除で使い分け）
+  const [pinDialogOpen, setPinDialogOpen] = useState(false)
+  const [pinDialogTitle, setPinDialogTitle] = useState('')
+  const [pinDialogDesc, setPinDialogDesc] = useState<React.ReactNode>('')
+  const [pinDialogLabel, setPinDialogLabel] = useState('実行')
+  const [pinDialogIsDestructive, setPinDialogIsDestructive] = useState(false)
+  const [pendingAction, setPendingAction] = useState<
+    ((pin: string) => Promise<{ success?: boolean; error?: string }>) | null
+  >(null)
 
   // GPS機能 ON/OFF
   const [gpsEnabled, setGpsEnabledState] = useState<boolean | null>(null)
@@ -300,76 +304,112 @@ export default function TimecardPage() {
     return jstDate.toISOString()
   }
 
-  const startEdit = (record: AttendanceRecord) => {
-    setEditingId(record.id)
-    setEditCheckin(extractTimeForEdit(record.checkin_time))
-    setEditCheckout(extractTimeForEdit(record.checkout_time))
-  }
-
   const cancelEdit = () => {
     setEditingId(null)
     setEditCheckin('')
     setEditCheckout('')
   }
 
-  const requestPasswordForAction = (
+  /**
+   * PIN認証付きで任意の操作を実行する共通フロー。
+   * 1. PIN設定済みかチェック（未設定なら案内）
+   * 2. PinDialog を開いて認証
+   * 3. PIN正解 → 渡された action を実行
+   */
+  const runWithPin = (
     title: string,
-    desc: string,
+    desc: React.ReactNode,
     label: string,
-    variant: 'destructive' | 'default',
-    action: () => Promise<void>
+    isDestructive: boolean,
+    action: () => Promise<{ success?: boolean; error?: string }>
   ) => {
-    setPasswordDialogTitle(title)
-    setPasswordDialogDesc(desc)
-    setPasswordDialogLabel(label)
-    setPasswordDialogVariant(variant)
-    setPendingAction(() => action)
-    setPasswordDialogOpen(true)
+    setPinDialogTitle(title)
+    setPinDialogDesc(desc)
+    setPinDialogLabel(label)
+    setPinDialogIsDestructive(isDestructive)
+    setPendingAction(() => async (pin: string) => {
+      // PIN未設定なら案内
+      if (!(await isAdminPinConfigured())) {
+        return {
+          error: '管理者PINが未設定です。「設定 → システム設定」から登録してください。',
+        }
+      }
+      // PIN認証
+      if (!(await verifyAdminPin(pin))) {
+        return { error: 'PINが正しくありません' }
+      }
+      // 認証成功 → 本処理
+      return action()
+    })
+    setPinDialogOpen(true)
   }
 
-  const saveEdit = (record: AttendanceRecord) => {
-    requestPasswordForAction(
-      'タイムカードを修正',
-      `${new Date(record.date).getDate()}日の出退勤時間を修正します。`,
-      '修正する',
-      'default',
+  // 編集ボタンクリック → PIN認証 → 編集モード開始
+  const startEdit = (record: AttendanceRecord) => {
+    runWithPin(
+      'タイムカードを編集',
+      <>
+        <span className="font-medium">
+          {new Date(record.date).getMonth() + 1}/{new Date(record.date).getDate()}
+        </span>{' '}
+        の出退勤時間を編集します。
+        <span className="block mt-1 text-xs">
+          管理者PINを入力すると編集モードに入ります。
+        </span>
+      </>,
+      '編集を開始',
+      false,
       async () => {
-        const newCheckin = buildTimestamp(record.date, editCheckin)
-        const newCheckout = buildTimestamp(record.date, editCheckout)
-
-        const result = await updateAttendance(record.id, {
-          checkin_time: newCheckin,
-          checkout_time: newCheckout,
-        })
-
-        if (result.error) {
-          toast.error(result.error)
-          return
-        }
-
-        toast.success('タイムカードを修正しました')
-        cancelEdit()
-        await loadTimecard()
+        setEditingId(record.id)
+        setEditCheckin(extractTimeForEdit(record.checkin_time))
+        setEditCheckout(extractTimeForEdit(record.checkout_time))
+        return { success: true }
       }
     )
   }
 
+  // 修正の保存（編集モードで認証済み → 追加PIN不要）
+  const saveEdit = async (record: AttendanceRecord) => {
+    const newCheckin = buildTimestamp(record.date, editCheckin)
+    const newCheckout = buildTimestamp(record.date, editCheckout)
+
+    const result = await updateAttendance(record.id, {
+      checkin_time: newCheckin,
+      checkout_time: newCheckout,
+    })
+
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    toast.success('タイムカードを修正しました')
+    cancelEdit()
+    await loadTimecard()
+  }
+
+  // 削除ボタン → PIN認証 → 削除実行
   const requestDelete = (record: AttendanceRecord) => {
-    requestPasswordForAction(
+    runWithPin(
       'タイムカードを削除',
-      `${new Date(record.date).getDate()}日の出退勤記録を削除します。この操作は取り消せません。`,
+      <>
+        <span className="font-medium">
+          {new Date(record.date).getMonth() + 1}/{new Date(record.date).getDate()}
+        </span>{' '}
+        の出退勤記録を削除します。
+        <span className="block mt-1 text-xs">この操作は取り消せません。</span>
+      </>,
       '削除する',
-      'destructive',
+      true,
       async () => {
         const result = await deleteAttendance(record.id)
-
         if (result.error) {
           toast.error(result.error)
-          return
+          return { error: result.error }
         }
-
         toast.success('タイムカード記録を削除しました')
         await loadTimecard()
+        return { success: true }
       }
     )
   }
@@ -972,20 +1012,27 @@ export default function TimecardPage() {
         </TabsContent>
       </Tabs>
 
-      {/* マスターパスワード確認ダイアログ */}
-      <PasswordConfirmDialog
-        open={passwordDialogOpen}
+      {/* PIN認証ダイアログ（編集開始 / 削除で共通使用） */}
+      <PinDialog
+        open={pinDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
-            setPasswordDialogOpen(false)
+            setPinDialogOpen(false)
             setPendingAction(null)
           }
         }}
-        title={passwordDialogTitle}
-        description={passwordDialogDesc}
-        onConfirm={pendingAction || (async () => {})}
-        confirmLabel={passwordDialogLabel}
-        variant={passwordDialogVariant}
+        title={pinDialogTitle}
+        description={pinDialogDesc}
+        onConfirm={async (pin) => {
+          if (!pendingAction) return { error: '操作対象がありません' }
+          return pendingAction(pin)
+        }}
+        confirmLabel={pinDialogLabel}
+        confirmClassName={
+          pinDialogIsDestructive
+            ? 'bg-red-600 hover:bg-red-700 text-white'
+            : undefined
+        }
       />
     </div>
   )
