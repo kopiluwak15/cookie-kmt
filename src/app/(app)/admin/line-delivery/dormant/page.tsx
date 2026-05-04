@@ -2,6 +2,7 @@
 
 import { LineTemplateEditor } from '@/components/features/line-template-editor'
 import { LineGlobalSetting } from '@/components/features/line-global-setting'
+import { DeliveryAttributionCard } from '@/components/features/delivery-attribution-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertTriangle, Link as LinkIcon } from 'lucide-react'
 
@@ -17,6 +18,12 @@ export default function DormantPage() {
           設定日数以上来店のないお客様に自動送信されます（毎週月曜10:00）
         </p>
       </div>
+
+      <DeliveryAttributionCard
+        templateType="dormant"
+        windowDays={60}
+        rangeDays={120}
+      />
 
       <LineTemplateEditor
         templateType="dormant"

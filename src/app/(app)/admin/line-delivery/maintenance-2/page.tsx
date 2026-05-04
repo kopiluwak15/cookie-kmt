@@ -2,6 +2,7 @@
 
 import { LineTemplateEditor } from '@/components/features/line-template-editor'
 import { LineGlobalSetting } from '@/components/features/line-global-setting'
+import { DeliveryAttributionCard } from '@/components/features/delivery-attribution-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Send, Link as LinkIcon } from 'lucide-react'
 
@@ -17,6 +18,12 @@ export default function Maintenance2Page() {
           メンテナンス①からさらに日数経過後に再送される2回目のメンテナンスチケットです（毎日11:00）
         </p>
       </div>
+
+      <DeliveryAttributionCard
+        templateType="maintenance_2"
+        windowDays={30}
+        rangeDays={90}
+      />
 
       <LineTemplateEditor
         templateType="maintenance_2"
