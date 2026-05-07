@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { Scissors, ArrowLeft } from 'lucide-react'
+import { Scissors, ArrowLeft, Clock } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -56,7 +56,7 @@ function LoginForm() {
 
     // 自動ログアウトされた場合の案内
     if (reason === 'inactivity') {
-      setInfo('長時間操作がなかったため自動ログアウトしました。再度ログインしてください。')
+      setInfo('inactivity')
       window.history.replaceState({}, '', '/login')
     }
 
@@ -151,10 +151,24 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* 自動ログアウト時の案内 */}
-      {info && (
-        <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 mb-4">
-          <p className="text-sm text-amber-800">{info}</p>
+      {/* 自動ログアウト時の案内（目立つカード表示） */}
+      {info === 'inactivity' && (
+        <div className="mb-6 rounded-xl border-2 border-amber-300 bg-amber-50 p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+              <Clock className="h-5 w-5 text-amber-700" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-amber-900 leading-tight">
+                ログインの有効期限が切れました
+              </h3>
+              <p className="mt-1.5 text-sm text-amber-800 leading-relaxed">
+                一定時間操作されなかったため、ログインの有効期限が切れました。
+                <br />
+                再度ログインしなおしてください。
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
