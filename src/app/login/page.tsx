@@ -26,21 +26,39 @@ function getErrorMessage(code: string): string {
   }
 }
 
+const KEEP_SIGNED_IN_KEY = 'keep_signed_in'
+
 function LoginForm() {
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [lineLoading, setLineLoading] = useState(false)
+  const [keepSignedIn, setKeepSignedIn] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const nextPath = searchParams.get('next') || ''
 
   const hasLineLogin = !!process.env.NEXT_PUBLIC_LINE_LOGIN_CHANNEL_ID
 
+  // 「ログイン状態を保つ」の現在の保存値で初期化
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const saved = localStorage.getItem(KEEP_SIGNED_IN_KEY) === '1'
+    setKeepSignedIn(saved)
+  }, [])
+
   // OAuth2コールバック処理: token_hash がURLにある場合、Supabaseセッションを作成
   useEffect(() => {
     const tokenHash = searchParams.get('token_hash')
     const type = searchParams.get('type')
     const errorCode = searchParams.get('error')
+    const reason = searchParams.get('reason')
+
+    // 自動ログアウトされた場合の案内
+    if (reason === 'inactivity') {
+      setInfo('長時間操作がなかったため自動ログアウトしました。再度ログインしてください。')
+      window.history.replaceState({}, '', '/login')
+    }
 
     if (errorCode) {
       setError(getErrorMessage(errorCode))
@@ -81,10 +99,24 @@ function LoginForm() {
     }
   }, [searchParams, router])
 
+  // 「ログイン状態を保つ」の preference を保存
+  function persistKeepSignedIn(value: boolean) {
+    try {
+      if (value) {
+        localStorage.setItem(KEEP_SIGNED_IN_KEY, '1')
+      } else {
+        localStorage.removeItem(KEEP_SIGNED_IN_KEY)
+      }
+    } catch {
+      // localStorage が使えない環境は無視（プライベートモード等）
+    }
+  }
+
   // LINEログイン: OAuth2フローへリダイレクト
   function handleLineLogin() {
     setLineLoading(true)
     setError(null)
+    persistKeepSignedIn(keepSignedIn)
     // サーバー側でLINE OAuth URLを構築してリダイレクト
     window.location.href = '/api/auth/line-redirect'
   }
@@ -92,6 +124,7 @@ function LoginForm() {
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     setError(null)
+    persistKeepSignedIn(keepSignedIn)
     const result = await login(formData)
     if (result?.error) {
       setError(result.error)
@@ -117,6 +150,13 @@ function LoginForm() {
           アカウント情報を入力してください
         </p>
       </div>
+
+      {/* 自動ログアウト時の案内 */}
+      {info && (
+        <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 mb-4">
+          <p className="text-sm text-amber-800">{info}</p>
+        </div>
+      )}
 
       {/* LINEログインボタン */}
       {hasLineLogin && (
@@ -178,6 +218,29 @@ function LoginForm() {
             placeholder="パスワードを入力"
             className="h-11 bg-white border-gray-300 focus:border-amber-500 focus:ring-amber-500"
           />
+        </div>
+
+        {/* ログイン状態を保つ */}
+        <div className="flex items-start gap-2">
+          <input
+            id="keep-signed-in"
+            type="checkbox"
+            checked={keepSignedIn}
+            onChange={(e) => setKeepSignedIn(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+          />
+          <div className="flex-1">
+            <label
+              htmlFor="keep-signed-in"
+              className="text-sm font-medium text-gray-700 cursor-pointer select-none"
+            >
+              ログイン状態を保つ
+            </label>
+            <p className="text-xs text-gray-500 mt-0.5">
+              チェックするとブラウザを閉じるまで自動ログアウトしません。
+              通常は60分操作がないと自動ログアウトします。
+            </p>
+          </div>
         </div>
 
         {error && (

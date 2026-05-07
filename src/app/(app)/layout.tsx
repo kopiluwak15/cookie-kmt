@@ -1,6 +1,7 @@
 import { getCachedStaffInfo } from '@/lib/cached-auth'
 import { Sidebar } from '@/components/sidebar'
 import { Header } from '@/components/header'
+import { SessionTimeoutTracker } from '@/components/features/session-timeout-tracker'
 import { redirect } from 'next/navigation'
 
 export default async function AppLayout({
@@ -25,6 +26,8 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* 60分非アクティブで自動ログアウト（「ログイン状態を保つ」有効時はスキップ） */}
+      <SessionTimeoutTracker />
       <Sidebar role={role} />
       <div className="md:pl-60">
         <Header staffName={staffName} role={role} />

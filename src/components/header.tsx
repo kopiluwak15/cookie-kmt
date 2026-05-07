@@ -111,7 +111,15 @@ export function Header({ staffName, role }: HeaderProps) {
       {/* ユーザー情報・ログアウト */}
       <div className="flex items-center gap-4">
         <span className="text-sm text-muted-foreground">{staffName}</span>
-        <form action={logout}>
+        <form
+          action={logout}
+          onSubmit={() => {
+            // 明示ログアウト時は「ログイン状態を保つ」preferenceもクリア
+            try {
+              localStorage.removeItem('keep_signed_in')
+            } catch {}
+          }}
+        >
           <Button variant="ghost" size="sm" type="submit">
             <LogOut className="h-4 w-4 mr-1" />
             ログアウト
