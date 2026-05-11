@@ -12,16 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { PinDialog } from '@/components/features/pin-dialog'
 import Link from 'next/link'
 import { Loader2, Trash2, RefreshCw, UserCheck, Clock, CheckCircle2 } from 'lucide-react'
 import { getAdminCheckedInCustomers, deleteCheckinRecord, type AdminCheckedInCustomer } from '@/actions/admin-checkin'
@@ -48,21 +39,18 @@ export default function CheckinPage() {
     fetchData()
   }, [fetchData])
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return
+  const handleDeleteWithPin = async (pin: string) => {
+    if (!deleteTarget) return { error: '対象が選択されていません' }
     setDeleting(deleteTarget.id)
     try {
-      const result = await deleteCheckinRecord(deleteTarget.id)
+      const result = await deleteCheckinRecord(deleteTarget.id, pin)
       if (result.success) {
         setCustomers((prev) => prev.filter((c) => c.id !== deleteTarget.id))
-      } else {
-        alert(result.error || '削除に失敗しました')
+        return { success: true }
       }
-    } catch {
-      alert('削除に失敗しました')
+      return { error: result.error || '削除に失敗しました' }
     } finally {
       setDeleting(null)
-      setDeleteTarget(null)
     }
   }
 
@@ -168,46 +156,32 @@ export default function CheckinPage() {
         </>
       )}
 
-      {/* 削除確認ダイアログ */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>チェックイン記録を削除</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget && (
+      {/* 削除確認＋PIN認証ダイアログ */}
+      <PinDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="チェックイン記録を削除"
+        description={
+          deleteTarget && (
+            <>
+              <span className="font-medium text-foreground">
+                {deleteTarget.customer_code} {deleteTarget.name}
+              </span>{' '}
+              の{deleteTarget.type === 'visit' ? '施術ログ' : 'チェックイン記録'}を削除します。
+              {deleteTarget.type === 'visit' && (
                 <>
-                  <span className="font-medium text-foreground">
-                    {deleteTarget.customer_code} {deleteTarget.name}
-                  </span>
-                  {' '}の{deleteTarget.type === 'visit' ? '施術ログ' : 'チェックイン記録'}を削除します。
-                  {deleteTarget.type === 'visit' && (
-                    <>
-                      <br />
-                      関連するLINEメッセージ履歴も削除されます。
-                    </>
-                  )}
                   <br />
-                  この操作は取り消せません。
+                  <span className="block mt-1 text-xs">
+                    ※ 関連する症例レコードも同時削除されます。LINE送信ログはリンクのみ解除。
+                  </span>
                 </>
               )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
-              disabled={!!deleting}
-            >
-              {deleting ? (
-                <><Loader2 className="h-4 w-4 mr-1 animate-spin" />削除中...</>
-              ) : (
-                '削除する'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </>
+          )
+        }
+        onConfirm={handleDeleteWithPin}
+        confirmLabel="削除する"
+      />
     </div>
   )
 }

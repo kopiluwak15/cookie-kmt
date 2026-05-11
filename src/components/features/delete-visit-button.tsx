@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 import { deleteVisitRecord } from '@/actions/visit-log'
-import { PasswordConfirmDialog } from '@/components/features/password-confirm-dialog'
+import { PinDialog } from '@/components/features/pin-dialog'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
@@ -20,15 +20,14 @@ export function DeleteVisitButton({
   const [open, setOpen] = useState(false)
   const router = useRouter()
 
-  async function handleDelete() {
-    const result = await deleteVisitRecord(visitId)
-    if (result.error) {
-      toast.error(result.error)
-    } else {
+  async function handleDeleteWithPin(pin: string) {
+    const result = await deleteVisitRecord(visitId, pin)
+    if (result.success) {
       toast.success(`${visitDate}の来店履歴を削除しました`)
       router.refresh()
+      return { success: true }
     }
-    setOpen(false)
+    return { error: result.error || '削除に失敗しました' }
   }
 
   return (
@@ -43,12 +42,27 @@ export function DeleteVisitButton({
         <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
       </Button>
 
-      <PasswordConfirmDialog
+      <PinDialog
         open={open}
         onOpenChange={setOpen}
         title="来店履歴を削除しますか？"
-        description={`${visitDate}${customerName ? '（' + customerName + '）' : ''}の来店履歴を削除します。この操作は取り消せません。`}
-        onConfirm={handleDelete}
+        description={
+          <>
+            <span className="font-medium text-foreground">
+              {visitDate}
+              {customerName ? `（${customerName}）` : ''}
+            </span>{' '}
+            の来店履歴を削除します。
+            <br />
+            <span className="block mt-1 text-xs">
+              ※ 関連する症例レコード（case_records）も同時削除されます。LINE送信ログは保持され、リンクのみ解除されます。
+            </span>
+            <br />
+            この操作は取り消せません。
+          </>
+        }
+        onConfirm={handleDeleteWithPin}
+        confirmLabel="削除する"
       />
     </>
   )

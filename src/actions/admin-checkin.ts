@@ -102,10 +102,24 @@ export async function getAdminCheckedInCustomers(): Promise<AdminCheckedInCustom
  * - type=visit の場合: visit_history レコード + 関連 LINE メッセージ履歴を削除
  * - type=checkin の場合: customer の last_visit_date をリセット
  */
-export async function deleteCheckinRecord(id: string): Promise<{ success?: boolean; error?: string }> {
+export async function deleteCheckinRecord(
+  id: string,
+  pin: string
+): Promise<{ success?: boolean; error?: string }> {
   const staff = await getCachedStaffInfo()
   if (!staff || staff.role !== 'admin') {
     return { error: 'この操作は管理者のみ実行できます' }
+  }
+
+  // PIN認証
+  const { isAdminPinConfigured, verifyAdminPin } = await import('./admin-security')
+  if (!(await isAdminPinConfigured())) {
+    return {
+      error: '管理者PINが未設定です。「設定 → システム設定」から先にPINを登録してください。',
+    }
+  }
+  if (!(await verifyAdminPin(pin))) {
+    return { error: 'PINが正しくありません' }
   }
 
   const supabase = await createClient()

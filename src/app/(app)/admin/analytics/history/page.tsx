@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table'
 import Link from 'next/link'
 import { EditVisitButton } from '@/components/features/edit-visit-button'
+import { DeleteVisitButton } from '@/components/features/delete-visit-button'
 
 const isSupabaseConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
@@ -104,6 +105,7 @@ export default async function VisitHistoryPage() {
                   <TableHead>担当</TableHead>
                   <TableHead className="text-center">お礼LINE</TableHead>
                   <TableHead className="text-center w-[60px]">編集</TableHead>
+                  <TableHead className="text-center w-[60px]">削除</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -158,12 +160,21 @@ export default async function VisitHistoryPage() {
                             />
                           )}
                         </TableCell>
+                        <TableCell className="text-center">
+                          {isSupabaseConfigured && (
+                            <DeleteVisitButton
+                              visitId={visit.id}
+                              visitDate={visit.visit_date}
+                              customerName={customer?.name}
+                            />
+                          )}
+                        </TableCell>
                       </TableRow>
                     )
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       施術履歴がありません
                     </TableCell>
                   </TableRow>

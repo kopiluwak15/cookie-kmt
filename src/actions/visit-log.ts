@@ -257,12 +257,23 @@ export async function getVisitRecord(id: string) {
   return data
 }
 
-// 来店履歴の個別削除（オーナーのみ）
-export async function deleteVisitRecord(id: string) {
+// 来店履歴の個別削除（管理者PIN認証必須）
+export async function deleteVisitRecord(id: string, pin: string) {
   const staff = await getCachedStaffInfo()
   if (!staff) return { error: 'ログインが必要です' }
-  const isOwner = !!(staff as unknown as Record<string, unknown>).is_owner
-  if (!isOwner) return { error: 'この操作はオーナーのみ実行できます' }
+  if (staff.role !== 'admin') {
+    return { error: 'この操作は管理者のみ実行できます' }
+  }
+
+  const { isAdminPinConfigured, verifyAdminPin } = await import('./admin-security')
+  if (!(await isAdminPinConfigured())) {
+    return {
+      error: '管理者PINが未設定です。「設定 → システム設定」から先にPINを登録してください。',
+    }
+  }
+  if (!(await verifyAdminPin(pin))) {
+    return { error: 'PINが正しくありません' }
+  }
 
   const supabase = await createClient()
 
