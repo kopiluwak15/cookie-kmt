@@ -60,8 +60,8 @@ export async function setAdminPin(
     return { error: '管理者権限が必要です' }
   }
 
-  if (!newPin || !/^\d{4,10}$/.test(newPin)) {
-    return { error: 'PINは4〜10桁の数字で指定してください' }
+  if (!newPin || !/^[a-zA-Z0-9]{4,20}$/.test(newPin)) {
+    return { error: 'PINは4〜20文字の英数字で指定してください' }
   }
 
   const admin = createAdminClient()

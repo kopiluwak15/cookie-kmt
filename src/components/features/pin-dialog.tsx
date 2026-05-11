@@ -57,8 +57,8 @@ export function PinDialog({
   }, [open])
 
   const handleSubmit = async () => {
-    if (!pin || !/^\d{4,10}$/.test(pin)) {
-      setError('PINは4〜10桁の数字で入力してください')
+    if (!pin || !/^[a-zA-Z0-9]{4,20}$/.test(pin)) {
+      setError('PINは4〜20文字の英数字で入力してください')
       return
     }
     setError(null)
@@ -94,13 +94,11 @@ export function PinDialog({
           <Input
             id="pin-input"
             type="password"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="\d*"
+            autoComplete="off"
             autoFocus
             value={pin}
-            placeholder="4〜10桁の数字"
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+            placeholder="4〜20文字の英数字"
+            onChange={(e) => setPin(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSubmit()
             }}

@@ -35,8 +35,8 @@ export default function SystemSettingsPage() {
   }, [])
 
   const handleSavePin = async () => {
-    if (!newPin || !/^\d{4,10}$/.test(newPin)) {
-      toast.error('PINは4〜10桁の数字で指定してください')
+    if (!newPin || !/^[a-zA-Z0-9]{4,20}$/.test(newPin)) {
+      toast.error('PINは4〜20文字の英数字で指定してください')
       return
     }
     if (newPin !== newPinConfirm) {
@@ -150,7 +150,7 @@ export default function SystemSettingsPage() {
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             ログ未入力の削除など、影響の大きい操作時に入力を求めるPINです。
-            4〜10桁の数字で設定してください。今後、削除・編集操作全般で使用されます。
+            4〜20文字の英数字で設定してください。今後、削除・編集操作全般で使用されます。
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -174,24 +174,22 @@ export default function SystemSettingsPage() {
               <Input
                 id="current-pin"
                 type="password"
-                inputMode="numeric"
-                pattern="\d*"
+                autoComplete="off"
                 value={currentPin}
-                onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => setCurrentPin(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
                 placeholder="現在のPIN"
               />
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="new-pin">新しいPIN（4〜10桁）</Label>
+            <Label htmlFor="new-pin">新しいPIN（4〜20文字 英数字）</Label>
             <Input
               id="new-pin"
               type="password"
-              inputMode="numeric"
-              pattern="\d*"
+              autoComplete="new-password"
               value={newPin}
-              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setNewPin(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
               placeholder="新しいPIN"
             />
           </div>
@@ -200,10 +198,9 @@ export default function SystemSettingsPage() {
             <Input
               id="new-pin-confirm"
               type="password"
-              inputMode="numeric"
-              pattern="\d*"
+              autoComplete="new-password"
               value={newPinConfirm}
-              onChange={(e) => setNewPinConfirm(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setNewPinConfirm(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
               placeholder="もう一度入力"
             />
           </div>
