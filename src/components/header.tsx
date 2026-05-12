@@ -114,9 +114,10 @@ export function Header({ staffName, role }: HeaderProps) {
         <form
           action={logout}
           onSubmit={() => {
-            // 明示ログアウト時は「ログイン状態を保つ」preferenceもクリア
+            // 明示ログアウト時は preference 一式をクリア
             try {
               localStorage.removeItem('keep_signed_in')
+              localStorage.removeItem('login_at')
             } catch {}
           }}
         >

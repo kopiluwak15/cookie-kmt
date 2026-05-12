@@ -27,6 +27,7 @@ function getErrorMessage(code: string): string {
 }
 
 const KEEP_SIGNED_IN_KEY = 'keep_signed_in'
+const LOGIN_AT_KEY = 'login_at'
 
 function LoginForm() {
   const [error, setError] = useState<string | null>(null)
@@ -55,8 +56,8 @@ function LoginForm() {
     const reason = searchParams.get('reason')
 
     // 自動ログアウトされた場合の案内
-    if (reason === 'inactivity') {
-      setInfo('inactivity')
+    if (reason === 'inactivity' || reason === 'expired') {
+      setInfo(reason)
       window.history.replaceState({}, '', '/login')
     }
 
@@ -99,7 +100,7 @@ function LoginForm() {
     }
   }, [searchParams, router])
 
-  // 「ログイン状態を保つ」の preference を保存
+  // 「ログイン状態を保つ」の preference を保存 + ログイン開始時刻を記録
   function persistKeepSignedIn(value: boolean) {
     try {
       if (value) {
@@ -107,6 +108,8 @@ function LoginForm() {
       } else {
         localStorage.removeItem(KEEP_SIGNED_IN_KEY)
       }
+      // ログイン開始時刻を記録（絶対経過時間の判定に使用）
+      localStorage.setItem(LOGIN_AT_KEY, String(Date.now()))
     } catch {
       // localStorage が使えない環境は無視（プライベートモード等）
     }
@@ -152,7 +155,7 @@ function LoginForm() {
       </div>
 
       {/* 自動ログアウト時の案内（目立つカード表示） */}
-      {info === 'inactivity' && (
+      {(info === 'inactivity' || info === 'expired') && (
         <div className="mb-6 rounded-xl border-2 border-amber-300 bg-amber-50 p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
@@ -163,7 +166,9 @@ function LoginForm() {
                 ログインの有効期限が切れました
               </h3>
               <p className="mt-1.5 text-sm text-amber-800 leading-relaxed">
-                一定時間操作されなかったため、ログインの有効期限が切れました。
+                {info === 'inactivity'
+                  ? '一定時間操作されなかったため、ログインの有効期限が切れました。'
+                  : 'ログインから一定時間が経過したため、有効期限が切れました。'}
                 <br />
                 再度ログインしなおしてください。
               </p>
