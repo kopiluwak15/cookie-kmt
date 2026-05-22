@@ -729,27 +729,27 @@ function LiffRegisterInner() {
         {step === 11 && (
           <StepFrame nextBtn={nextBtn}
             title="髪で気になる箇所"
-            sub="イラストをタップしてお選びください"
+            sub="気になる部分をタップしてください（複数選択可）"
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-4">
               <HeadIllustration
                 view="front"
-                label="正面"
+                label="前方（正面）"
                 spots={HEAD_SPOTS.filter((s) => s.view === 'front')}
                 selected={form.spots}
                 onToggle={(id) => toggleArr('spots', id)}
               />
               <HeadIllustration
                 view="back"
-                label="後方"
+                label="後方（後頭部）"
                 spots={HEAD_SPOTS.filter((s) => s.view === 'back')}
                 selected={form.spots}
                 onToggle={(id) => toggleArr('spots', id)}
               />
             </div>
             {form.spots.length > 0 && (
-              <p className="text-xs text-stone-700 text-center mt-4 font-semibold">
-                {form.spots.length}箇所を選択中
+              <p className="text-sm text-stone-700 text-center mt-2 font-semibold">
+                ✓ {form.spots.length}箇所を選択中
               </p>
             )}
           </StepFrame>
@@ -960,15 +960,29 @@ function HeadIllustration({
   selected: string[]
   onToggle: (id: string) => void
 }) {
+  const selectedInView = spots.filter((s) => selected.includes(s.id))
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-3">
-      <p className="text-center text-xs font-semibold text-stone-700 mb-1">
-        {label}（{view === 'front' ? '前' : '後'}）
-      </p>
-      <svg viewBox="0 0 200 180" className="w-full">
+    <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      {/* ヘッダー */}
+      <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+        <p className="text-sm font-bold text-stone-800">{label}</p>
+        {selectedInView.length > 0 && (
+          <div className="flex flex-wrap gap-1 justify-end">
+            {selectedInView.map((s) => (
+              <span key={s.id} className="text-[10px] px-2 py-0.5 rounded-full bg-stone-900 text-white font-semibold">
+                {s.label}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* SVGイラスト（全幅で大きく） */}
+      <div className="px-3 pb-3">
+      <svg viewBox="0 0 200 185" className="w-full">
+        {/* 頭部輪郭 */}
         <ellipse
           cx="100"
-          cy="90"
+          cy="92"
           rx="78"
           ry="82"
           fill="#FAFAF9"
@@ -978,22 +992,32 @@ function HeadIllustration({
         />
         {spots.map((s) => {
           const active = selected.includes(s.id)
+          // タップ領域を少し広げた透明の楕円をオーバーレイ
           return (
             <g key={s.id} onClick={() => onToggle(s.id)} style={{ cursor: 'pointer' }}>
+              {/* タップ領域（透明、実際の楕円より広め） */}
               <ellipse
                 cx={s.cx}
-                cy={s.cy}
+                cy={s.cy + 2}
+                rx={s.rx + 6}
+                ry={s.ry + 6}
+                fill="transparent"
+              />
+              {/* 表示楕円 */}
+              <ellipse
+                cx={s.cx}
+                cy={s.cy + 2}
                 rx={s.rx}
                 ry={s.ry}
-                fill={active ? '#1c1917' : 'rgba(214,211,209,0.3)'}
+                fill={active ? '#1c1917' : 'rgba(214,211,209,0.35)'}
                 stroke={active ? '#000' : '#D6D3D1'}
                 strokeWidth={active ? 2 : 1}
               />
               <text
                 x={s.cx}
-                y={s.cy + 3}
+                y={s.cy + 2 + 4}
                 textAnchor="middle"
-                fontSize="9"
+                fontSize="10"
                 fill={active ? '#fff' : '#78716C'}
                 fontWeight={active ? 'bold' : 'normal'}
                 pointerEvents="none"
@@ -1004,6 +1028,7 @@ function HeadIllustration({
           )
         })}
       </svg>
+      </div>
     </div>
   )
 }
