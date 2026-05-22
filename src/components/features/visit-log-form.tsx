@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { createVisitLog } from '@/actions/visit-log'
 import { enqueueOffline, formDataToPayload } from '@/lib/offline/queue'
 import { CustomerSearch } from './customer-search'
+import { AiSuggestionButton } from './ai-suggestion-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -131,6 +132,7 @@ export function VisitLogForm({
   const [price, setPrice] = useState('')
   const [priceManuallyEdited, setPriceManuallyEdited] = useState(false)
   const [otherAmount, setOtherAmount] = useState('')
+  const [otherAmountUnit, setOtherAmountUnit] = useState<'yen' | 'percent'>('yen')
   const [otherNote, setOtherNote] = useState('')
   const [chemicalTags, setChemicalTags] = useState<string[]>([])
   const [chemicalRaw, setChemicalRaw] = useState('')
@@ -218,9 +220,23 @@ export function VisitLogForm({
   const otherAmountNum = otherAmount === '' || otherAmount === '-' ? 0 : Number(otherAmount)
   const safeOtherAmount = Number.isFinite(otherAmountNum) ? otherAmountNum : 0
 
-  // 合計（メニュー + その他）→ 税込
-  const subtotal = totalMenuPrice + safeOtherAmount
-  const computedTotal = Math.round(subtotal * 1.1)
+  // === 会計ロジック ===
+  // 1) 本体（税抜）→ 税込
+  // 2) 最後に「その他」を加算/減算（円割引 or ％割引）
+  const subtotalTaxExcl = totalMenuPrice
+  const subtotalTaxIncl = Math.round(totalMenuPrice * 1.1)
+
+  // 「その他」を実額（円）に換算
+  // 円モード: safeOtherAmount そのまま（符号付き）
+  // ％モード: 税込小計に対する％（符号付き）。例: -10 → 税込の10%を引く
+  const otherAmountAsYen =
+    otherAmountUnit === 'percent'
+      ? Math.round(subtotalTaxIncl * (safeOtherAmount / 100))
+      : safeOtherAmount
+
+  const computedTotal = subtotalTaxIncl + otherAmountAsYen
+  // 旧コードとの互換: subtotal は表示で参照されるので維持（税抜の小計）
+  const subtotal = subtotalTaxExcl
 
   // メニュー or その他 が変わったら、手動編集していなければ price を自動更新
   useEffect(() => {
@@ -310,7 +326,13 @@ export function VisitLogForm({
         const noteParts: string[] = []
         if (safeOtherAmount !== 0) {
           const sign = safeOtherAmount > 0 ? '+' : '−'
-          noteParts.push(`その他: ${sign}¥${Math.abs(safeOtherAmount).toLocaleString()}`)
+          if (otherAmountUnit === 'percent') {
+            noteParts.push(
+              `その他: ${sign}${Math.abs(safeOtherAmount)}% （¥${Math.abs(otherAmountAsYen).toLocaleString()}）`
+            )
+          } else {
+            noteParts.push(`その他: ${sign}¥${Math.abs(safeOtherAmount).toLocaleString()}`)
+          }
         }
         if (otherNote.trim()) {
           noteParts.push(otherNote.trim())
@@ -361,6 +383,7 @@ export function VisitLogForm({
       setPrice('')
       setPriceManuallyEdited(false)
       setOtherAmount('')
+      setOtherAmountUnit('yen')
       setOtherNote('')
       setConcernTags([])
       setConcernRaw('')
@@ -385,6 +408,31 @@ export function VisitLogForm({
             selectedCustomer={selectedCustomer}
             checkedInOnly
           />
+          {/* お客様選択後に AI 提案ボタンを出す */}
+          {selectedCustomer && (
+            <div className="flex items-center justify-end pt-1">
+              <AiSuggestionButton
+                customerId={selectedCustomer.id}
+                customerName={selectedCustomer.name}
+                onAdoptMenus={(menuNames) => {
+                  // AI が提案したメニュー名を、現在のサービスメニュー候補から探して追加
+                  const matched = serviceMenus.filter((m) => menuNames.includes(m.name))
+                  if (matched.length === 0) {
+                    toast.error('該当するメニューが見つかりませんでした')
+                    return
+                  }
+                  setSelectedMenus((prev) => {
+                    const next = [...prev]
+                    for (const m of matched) {
+                      if (!next.some((x) => x.id === m.id)) next.push(m)
+                    }
+                    return next
+                  })
+                  toast.success(`${matched.length}件のメニューを反映しました`)
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* 来店日（手動指定可・今日と異なる場合は赤表示） */}
@@ -693,7 +741,8 @@ export function VisitLogForm({
         {/* その他（割引・追加料金など） */}
         <div className="space-y-2">
           <Label className="text-base font-semibold">その他（割引・追加）</Label>
-          <div className="grid grid-cols-[auto_100px_1fr] gap-2 items-center">
+          <div className="grid grid-cols-[auto_auto_110px_1fr] gap-2 items-center">
+            {/* ± トグル */}
             <Button
               type="button"
               variant="outline"
@@ -711,8 +760,23 @@ export function VisitLogForm({
             >
               ±
             </Button>
+            {/* ¥ / % トグル */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 w-12 shrink-0 text-sm font-bold"
+              onClick={() =>
+                setOtherAmountUnit(otherAmountUnit === 'yen' ? 'percent' : 'yen')
+              }
+              title="クリックで ¥ / % を切替"
+            >
+              {otherAmountUnit === 'yen' ? '¥' : '%'}
+            </Button>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">¥</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                {otherAmountUnit === 'yen' ? '¥' : '%'}
+              </span>
               <Input
                 type="text"
                 inputMode="numeric"
@@ -724,7 +788,7 @@ export function VisitLogForm({
                     setOtherAmount(v)
                   }
                 }}
-                placeholder="-500"
+                placeholder={otherAmountUnit === 'yen' ? '-500' : '-10'}
                 className="pl-8"
               />
             </div>
@@ -736,7 +800,9 @@ export function VisitLogForm({
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            ±ボタンで割引/追加を切り替え。金額を入力してください。
+            ±ボタンで割引/追加を、{' '}
+            <span className="font-semibold">¥/%ボタン</span> で単位を切替。
+            ％は税込合計に対して計算されます（最後に値引き）。
           </p>
         </div>
 
@@ -772,22 +838,29 @@ export function VisitLogForm({
             />
           </div>
           {(totalMenuPrice > 0 || safeOtherAmount !== 0) && (
-            <p className="text-xs text-muted-foreground text-right">
-              メニュー ¥{totalMenuPrice.toLocaleString()}
+            <div className="text-xs text-muted-foreground text-right space-y-0.5">
+              <p>
+                メニュー（税抜）¥{subtotalTaxExcl.toLocaleString()}
+                {' → '}
+                税込 ¥{subtotalTaxIncl.toLocaleString()}
+              </p>
               {safeOtherAmount !== 0 && (
-                <>
-                  {' '}
-                  {safeOtherAmount > 0 ? '+' : '−'} ¥{Math.abs(safeOtherAmount).toLocaleString()}
-                </>
+                <p>
+                  {otherAmountAsYen > 0 ? '＋' : '−'}{' '}
+                  {otherAmountUnit === 'percent'
+                    ? `${Math.abs(safeOtherAmount)}% （¥${Math.abs(otherAmountAsYen).toLocaleString()}）`
+                    : `¥${Math.abs(otherAmountAsYen).toLocaleString()}`}
+                </p>
               )}
-              {' '}
-              (税抜 ¥{subtotal.toLocaleString()})
-              {' → '}
-              <span className="font-bold text-foreground">
-                税込 ¥{computedTotal.toLocaleString()}
-              </span>
-              {!priceManuallyEdited && <span className="ml-1 text-green-600">（自動）</span>}
-            </p>
+              <p>
+                <span className="font-bold text-foreground text-sm">
+                  お会計 ¥{computedTotal.toLocaleString()}
+                </span>
+                {!priceManuallyEdited && (
+                  <span className="ml-1 text-green-600">（自動）</span>
+                )}
+              </p>
+            </div>
           )}
         </div>
 
