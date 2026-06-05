@@ -23,8 +23,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Building2, Plus, Power, MapPin, Loader2 } from 'lucide-react'
+import { Building2, Plus, Power, MapPin, Loader2, Wifi } from 'lucide-react'
 import type { Store } from '@/types'
+import { WifiPanel } from './_components/wifi-panel'
 
 const isSupabaseConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
@@ -47,6 +48,9 @@ export default function StoresPage() {
   const [gpsRadius, setGpsRadius] = useState('50')
   const [savingGps, setSavingGps] = useState(false)
   const [fetchingGps, setFetchingGps] = useState(false)
+
+  // WiFi(IP)設定
+  const [wifiEditId, setWifiEditId] = useState<string | null>(null)
 
   useEffect(() => {
     loadStores()
@@ -225,6 +229,7 @@ export default function StoresPage() {
                 <TableHead>住所</TableHead>
                 <TableHead>電話番号</TableHead>
                 <TableHead>GPS</TableHead>
+                <TableHead>WiFi</TableHead>
                 <TableHead>状態</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
@@ -232,7 +237,7 @@ export default function StoresPage() {
             <TableBody>
               {stores.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     店舗が登録されていません
                   </TableCell>
                 </TableRow>
@@ -259,6 +264,15 @@ export default function StoresPage() {
                       )}
                     </TableCell>
                     <TableCell>
+                      {(store as any).timecard_wifi_enabled ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-xs">
+                          {((store as any).timecard_allowed_ips?.length || 0)}件
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-gray-400">未設定</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       {store.is_active ? (
                         <Badge className="bg-green-100 text-green-800 hover:bg-green-100">有効</Badge>
                       ) : (
@@ -278,6 +292,14 @@ export default function StoresPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => setWifiEditId(store.id)}
+                          title="WiFi打刻設定"
+                        >
+                          <Wifi className="h-4 w-4 text-emerald-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleToggleActive(store.id, store.is_active)}
                           title={store.is_active ? '無効にする' : '有効にする'}
                         >
@@ -292,6 +314,18 @@ export default function StoresPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* WiFi(IP)設定パネル */}
+      {wifiEditId && (
+        <WifiPanel
+          storeId={wifiEditId}
+          storeName={stores.find((s) => s.id === wifiEditId)?.name || ''}
+          onClose={async () => {
+            setWifiEditId(null)
+            await loadStores()
+          }}
+        />
+      )}
 
       {/* GPS設定パネル */}
       {gpsEditId && (
