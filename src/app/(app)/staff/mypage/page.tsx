@@ -1,9 +1,11 @@
 import { getCachedStaffInfo } from '@/lib/cached-auth'
 import { getLicenseUrl } from '@/actions/license'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { LicenseUpload } from '@/components/features/license-upload'
+import { TabletPinCard } from './_components/tablet-pin-card'
 import {
   EMPLOYMENT_TYPE_LABELS,
   STAGE_DEFINITIONS,
@@ -95,6 +97,18 @@ export default async function MyPage() {
     : null
   const hasLicense = !!staffInfo.license_image_path
 
+  // タブレット打刻PINの設定有無
+  let hasTabletPin = false
+  if (isSupabaseConfigured) {
+    const admin = createAdminClient()
+    const { data } = await admin
+      .from('staff')
+      .select('timecard_pin_hash')
+      .eq('id', staffInfo.id)
+      .maybeSingle()
+    hasTabletPin = !!data?.timecard_pin_hash
+  }
+
   return (
     <div className="space-y-6">
       {/* ヘッダー */}
@@ -159,6 +173,9 @@ export default async function MyPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* タブレット打刻PIN設定（全スタッフ対象） */}
+      <TabletPinCard hasPin={hasTabletPin} />
 
       {/* 業務委託向けセクション */}
       {isContractor && (

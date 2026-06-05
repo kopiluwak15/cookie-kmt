@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Loader2, CheckCircle2, Clock, MapPin, AlertCircle, Bell, X } from 'lucide-react'
+import { Loader2, CheckCircle2, Clock, MapPin, AlertCircle, Bell, X, Wifi } from 'lucide-react'
 
 /**
  * LIFFウィンドウを閉じる。
@@ -54,7 +54,13 @@ type CheckResp = {
     longitude: number | null
     gps_radius_meters: number
     gps_enabled: boolean
+    timecard_wifi_enabled?: boolean
   } | null
+  wifiCheck?: {
+    wifi_enabled: boolean
+    wifi_match: boolean
+    client_ip: string | null
+  }
   attendance: { checkin_time: string | null; checkout_time: string | null } | null
   nextAction: 'check_in' | 'check_out' | 'done'
   today: string
@@ -168,7 +174,14 @@ function LiffTimecardInner() {
           return
         }
 
-        // GPS check
+        // ① WiFi 一致なら GPS をスキップして即「打刻可能」状態にする
+        if (data.wifiCheck?.wifi_match) {
+          setGpsVerified(null) // GPS は判定しない
+          setMode('ready')
+          return
+        }
+
+        // ② GPS check
         if (
           data.store?.gps_enabled &&
           data.store.latitude != null &&
@@ -376,11 +389,14 @@ function LiffTimecardInner() {
   if (!info) return null
   const action = info.nextAction
   const actionLabel = action === 'check_in' ? '出勤' : '退勤'
-  const gpsRequired = !!info.store?.gps_enabled
+  const wifiVerified = !!info.wifiCheck?.wifi_match
+  // WiFi 一致時は GPS を不問にする
+  const gpsRequired = !!info.store?.gps_enabled && !wifiVerified
   const gpsOk = !gpsRequired || gpsVerified === true
+  const locationOk = wifiVerified || gpsOk
   const allAnnouncementsConfirmed =
     announcements.length === 0 || confirmedIds.size === announcements.length
-  const canPunch = gpsOk && allAnnouncementsConfirmed
+  const canPunch = locationOk && allAnnouncementsConfirmed
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white px-6 py-10 flex items-center justify-center">
@@ -412,6 +428,22 @@ function LiffTimecardInner() {
             </span>
           </div>
         </div>
+
+        {wifiVerified && (
+          <div className="rounded-2xl border p-4 mb-4 bg-emerald-50 border-emerald-200">
+            <div className="flex items-start gap-2">
+              <Wifi className="h-5 w-5 mt-0.5 flex-shrink-0 text-emerald-600" />
+              <div className="text-sm">
+                <p className="text-emerald-800 font-medium">
+                  店舗Wi-Fiで確認できました
+                </p>
+                <p className="text-emerald-700 text-xs mt-0.5">
+                  位置情報の取得は不要です
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {gpsRequired && (
           <div

@@ -1,6 +1,7 @@
 // LINE userId からスタッフを特定し本日の出退勤状況を返す
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getClientIp, parseAllowedIps, isIpAllowed } from '@/lib/ip-check'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -38,15 +39,46 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'staff_inactive', message: '無効なスタッフです' }, { status: 403 })
   }
 
-  // 店舗位置情報
-  let store: { latitude: number | null; longitude: number | null; gps_radius_meters: number; gps_enabled: boolean } | null = null
+  // 店舗位置情報 + WiFi(IP)設定
+  let store: {
+    latitude: number | null
+    longitude: number | null
+    gps_radius_meters: number
+    gps_enabled: boolean
+    timecard_wifi_enabled: boolean
+  } | null = null
+  let wifiCheck: {
+    wifi_enabled: boolean
+    wifi_match: boolean
+    client_ip: string | null
+  } = { wifi_enabled: false, wifi_match: false, client_ip: null }
+
   if (staff.store_id) {
     const { data } = await supabase
       .from('store')
-      .select('latitude, longitude, gps_radius_meters, gps_enabled')
+      .select(
+        'latitude, longitude, gps_radius_meters, gps_enabled, timecard_wifi_enabled, timecard_allowed_ips'
+      )
       .eq('id', staff.store_id)
       .maybeSingle()
-    if (data) store = data
+    if (data) {
+      store = {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        gps_radius_meters: data.gps_radius_meters,
+        gps_enabled: data.gps_enabled,
+        timecard_wifi_enabled: !!data.timecard_wifi_enabled,
+      }
+      // クライアントIPと許可IPを突合
+      const clientIp = getClientIp(req)
+      const allowed = parseAllowedIps(data.timecard_allowed_ips)
+      const result = isIpAllowed(clientIp, allowed)
+      wifiCheck = {
+        wifi_enabled: !!data.timecard_wifi_enabled,
+        wifi_match: !!data.timecard_wifi_enabled && result.allowed,
+        client_ip: clientIp,
+      }
+    }
   }
 
   // 本日の出退勤
@@ -113,6 +145,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     staff: { id: staff.id, name: staff.name },
     store,
+    wifiCheck,
     attendance: attendance || null,
     nextAction,
     today,
