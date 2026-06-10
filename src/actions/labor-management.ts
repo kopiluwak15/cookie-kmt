@@ -653,7 +653,11 @@ export async function getAnnouncementLogs(staffId?: string) {
   const staff = await getCachedStaffInfo()
   if (!staff || staff.role !== 'admin') return { error: '管理者権限が必要です' }
 
-  const supabase = await createClient()
+  // 管理者役割を関数側で検証済みのため、RLS をバイパスする adminClient を使う。
+  // RLS ポリシー(00015) は `staff.id = auth.uid()` を見ているが、
+  // 実際は `staff.auth_user_id = auth.uid()` で紐付けるため、通常クライアントでは
+  // 全行がフィルタされ「データなし」と誤表示される。
+  const supabase = createAdminClient()
 
   let query = supabase
     .from('announcements')
