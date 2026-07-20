@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 import { MESSAGE_TYPE_LABELS } from '@/lib/constants'
 import { DeleteVisitButton } from '@/components/features/delete-visit-button'
+import { AddVisitButton } from '@/components/features/add-visit-button'
 import { Sparkles, ChevronDown, ChevronUp, FlaskConical, StickyNote } from 'lucide-react'
 import type { CaseRecord } from '@/types'
 
@@ -71,6 +72,7 @@ interface Props {
   karteIntakes: any[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   conceptIntakes: any[]
+  customerId: string
   customerName: string
   isSupabaseConfigured: boolean
   /** 閲覧専用モード（削除ボタン非表示） */
@@ -83,6 +85,7 @@ export function CustomerDetailTabs({
   lineHistory,
   karteIntakes,
   conceptIntakes,
+  customerId,
   customerName,
   isSupabaseConfigured,
   readOnly = false,
@@ -99,8 +102,11 @@ export function CustomerDetailTabs({
       {/* 施術履歴 */}
       <TabsContent value="visits">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">施術履歴</CardTitle>
+            {isSupabaseConfigured && !readOnly && (
+              <AddVisitButton customerId={customerId} customerName={customerName} />
+            )}
           </CardHeader>
           <CardContent>
             {visits.length > 0 ? (

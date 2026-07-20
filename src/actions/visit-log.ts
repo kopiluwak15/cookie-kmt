@@ -328,6 +328,58 @@ async function recalcCustomerVisits(supabase: Awaited<ReturnType<typeof createCl
     .eq('id', customerId)
 }
 
+// 来店履歴の追加（管理画面から過去データ登録時用、PIN認証必須）
+export async function addVisitRecord(input: {
+  customerId: string
+  visitDate: string
+  staffName?: string
+  serviceMenu?: string
+  pin: string
+}) {
+  const staff = await getCachedStaffInfo()
+  if (!staff) return { error: 'ログインが必要です' }
+  if (staff.role !== 'admin') {
+    return { error: 'この操作は管理者のみ実行できます' }
+  }
+
+  const { isAdminPinConfigured, verifyAdminPin } = await import('./admin-security')
+  if (!(await isAdminPinConfigured())) {
+    return {
+      error: '管理者PINが未設定です。「設定 → システム設定」から先にPINを登録してください。',
+    }
+  }
+  if (!(await verifyAdminPin(input.pin))) {
+    return { error: 'PINが正しくありません' }
+  }
+
+  const supabase = await createClient()
+
+  // 来店履歴を insert
+  const { data: newVisit, error } = await supabase
+    .from('visit_history')
+    .insert([
+      {
+        customer_id: input.customerId,
+        visit_date: input.visitDate,
+        staff_name: input.staffName || null,
+        service_menu: input.serviceMenu || null,
+        created_at: new Date().toISOString(),
+        thank_you_sent: false,
+      },
+    ])
+    .select('id')
+    .single()
+
+  if (error) {
+    return { error: `追加に失敗しました: ${error.message}` }
+  }
+
+  // 顧客の total_visits / last_visit_date を再計算
+  await recalcCustomerVisits(supabase, input.customerId)
+
+  return { success: true, visitId: newVisit.id }
+}
+
 export async function getStaffList() {
   const supabase = await createClient()
 
