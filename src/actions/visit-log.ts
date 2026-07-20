@@ -353,15 +353,15 @@ async function recalcCustomerVisits(supabase: Awaited<ReturnType<typeof createCl
 }
 
 // 来店履歴の追加（管理画面から過去データ登録時用、PIN認証必須）
+// 注意: visit_history は staff_name / service_menu が NOT NULL のため必須。
+// 金額はダッシュボード売上集計が参照する既存の price カラムに保存する。
 export async function addVisitRecord(input: {
   customerId: string
   visitDate: string
-  staffName?: string
-  serviceMenu?: string
-  sellPrice?: number
-  discountType?: 'fixed' | 'percent'
-  discountAmount?: number
-  displayName?: string
+  staffName: string
+  serviceMenu: string
+  price?: number
+  notes?: string
   pin: string
 }) {
   const staff = await getCachedStaffInfo()
@@ -380,44 +380,49 @@ export async function addVisitRecord(input: {
     return { error: 'PINが正しくありません' }
   }
 
-  // 金額計算（仮：税率10% = 税込で計算）
-  const sellPrice = input.sellPrice || 0
-  const discountAmount = input.discountAmount || 0
-  const discountType = input.discountType || 'fixed'
-
-  // 割引を適用（fixed=固定額、percent=パーセント）
-  let finalPrice = sellPrice
-  if (discountType === 'percent') {
-    finalPrice = Math.round(sellPrice * (1 - Math.abs(discountAmount) / 100))
-  } else {
-    finalPrice = sellPrice - Math.abs(discountAmount)
+  if (!input.visitDate || !/^\d{4}-\d{2}-\d{2}$/.test(input.visitDate)) {
+    return { error: '来店日を正しく入力してください' }
   }
-  finalPrice = Math.max(0, finalPrice)
+  if (!input.staffName) {
+    return { error: '担当スタッフを選択してください' }
+  }
+  if (!input.serviceMenu?.trim()) {
+    return { error: '施術メニューを入力してください' }
+  }
 
-  // 税額（税込価格から逆算：実際は売上計上時に8%で考えるケースもあるが、
-  // ここではinvoiceとして税込価格のみ記録）
-  const taxAmount = Math.round(finalPrice / 1.1 * 0.1)
+  // 権限チェック済みのため adminClient を使用（RLS事情に左右されない）
+  const supabase = createAdminClient()
 
-  const supabase = await createClient()
+  // 同一顧客・同日の重複チェック（正規の施術ログ入力と同じルール）
+  const { data: existingLog } = await supabase
+    .from('visit_history')
+    .select('id')
+    .eq('customer_id', input.customerId)
+    .eq('visit_date', input.visitDate)
+    .limit(1)
+    .maybeSingle()
 
-  // 来店履歴を insert（金額・割引情報も含める）
+  if (existingLog) {
+    return { error: `${input.visitDate} の来店履歴は既に存在します` }
+  }
+
+  const insertData: Record<string, unknown> = {
+    customer_id: input.customerId,
+    visit_date: input.visitDate,
+    staff_name: input.staffName,
+    service_menu: input.serviceMenu.trim(),
+    thank_you_sent: true, // 過去分の遡及登録なのでお礼LINEは送らない
+  }
+  if (input.price !== undefined && input.price > 0) {
+    insertData.price = input.price
+  }
+  if (input.notes?.trim()) {
+    insertData.notes = input.notes.trim()
+  }
+
   const { data: newVisit, error } = await supabase
     .from('visit_history')
-    .insert([
-      {
-        customer_id: input.customerId,
-        visit_date: input.visitDate,
-        staff_name: input.staffName || null,
-        service_menu: input.serviceMenu || null,
-        sell_price: finalPrice,
-        tax_amount: taxAmount,
-        discount_type: discountType,
-        discount_amount: input.discountAmount || 0,
-        display_name: input.displayName || null,
-        created_at: new Date().toISOString(),
-        thank_you_sent: false,
-      },
-    ])
+    .insert(insertData)
     .select('id')
     .single()
 
