@@ -29,6 +29,10 @@ export function AddVisitButton({
   const [visitDate, setVisitDate] = useState('')
   const [staffName, setStaffName] = useState('')
   const [serviceMenu, setServiceMenu] = useState('')
+  const [sellPrice, setSellPrice] = useState('')
+  const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed')
+  const [discountAmount, setDiscountAmount] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const router = useRouter()
 
   async function handleAddWithPin(pin: string) {
@@ -41,15 +45,22 @@ export function AddVisitButton({
       visitDate,
       staffName: staffName || undefined,
       serviceMenu: serviceMenu || undefined,
+      sellPrice: sellPrice ? parseInt(sellPrice, 10) : undefined,
+      discountType,
+      discountAmount: discountAmount ? parseInt(discountAmount, 10) : undefined,
+      displayName: displayName || undefined,
       pin,
     })
 
     if (result.success) {
-      toast.success(`${visitDate}の来店履歴を追加しました`)
+      toast.success(`${visitDate}の来店履歴を追加しました（売上: ${sellPrice ? `¥${parseInt(sellPrice, 10).toLocaleString()}` : '-'}）`)
       setFormOpen(false)
       setVisitDate('')
       setStaffName('')
       setServiceMenu('')
+      setSellPrice('')
+      setDiscountAmount('')
+      setDisplayName('')
       router.refresh()
       return { success: true }
     }
@@ -110,6 +121,56 @@ export function AddVisitButton({
                 value={serviceMenu}
                 onChange={(e) => setServiceMenu(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="display-name">請求名（オプション）</Label>
+              <Input
+                id="display-name"
+                type="text"
+                placeholder="カット + カラー"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sell-price">売価（円、税込み）</Label>
+              <Input
+                id="sell-price"
+                type="number"
+                placeholder="5500"
+                value={sellPrice}
+                onChange={(e) => setSellPrice(e.target.value)}
+                min="0"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="discount-type">割引形式</Label>
+                <select
+                  id="discount-type"
+                  className="w-full px-3 py-2 border border-input rounded-md text-sm"
+                  value={discountType}
+                  onChange={(e) => setDiscountType(e.target.value as 'fixed' | 'percent')}
+                >
+                  <option value="fixed">固定額（¥）</option>
+                  <option value="percent">パーセント（%）</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="discount-amount">割引額</Label>
+                <Input
+                  id="discount-amount"
+                  type="number"
+                  placeholder={discountType === 'percent' ? '10' : '500'}
+                  value={discountAmount}
+                  onChange={(e) => setDiscountAmount(e.target.value)}
+                  min="0"
+                />
+              </div>
             </div>
           </div>
 
