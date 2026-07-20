@@ -257,6 +257,30 @@ export async function getVisitRecord(id: string) {
   return data
 }
 
+// 来店履歴追加時のスタッフ一覧取得
+export async function getStaffForVisitLog(storeId?: string) {
+  const supabase = await createClient()
+
+  let query = supabase
+    .from('staff')
+    .select('id, name, is_active')
+    .eq('is_active', true)
+    .order('name', { ascending: true })
+
+  if (storeId) {
+    query = query.eq('store_id', storeId)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Failed to fetch staff:', error)
+    return []
+  }
+
+  return data || []
+}
+
 // 来店履歴の個別削除（管理者PIN認証必須）
 export async function deleteVisitRecord(id: string, pin: string) {
   const staff = await getCachedStaffInfo()

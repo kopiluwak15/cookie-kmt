@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { PlusIcon } from 'lucide-react'
-import { addVisitRecord } from '@/actions/visit-log'
+import { PlusIcon, Loader2 } from 'lucide-react'
+import { addVisitRecord, getStaffForVisitLog } from '@/actions/visit-log'
 import { PinDialog } from '@/components/features/pin-dialog'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -17,6 +17,8 @@ import {
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 
+type Staff = { id: string; name: string; is_active: boolean }
+
 export function AddVisitButton({
   customerId,
   customerName,
@@ -27,7 +29,9 @@ export function AddVisitButton({
   const [formOpen, setFormOpen] = useState(false)
   const [pinOpen, setPinOpen] = useState(false)
   const [visitDate, setVisitDate] = useState('')
-  const [staffName, setStaffName] = useState('')
+  const [staffId, setStaffId] = useState('')
+  const [staffList, setStaffList] = useState<Staff[]>([])
+  const [staffLoading, setStaffLoading] = useState(false)
   const [serviceMenu, setServiceMenu] = useState('')
   const [sellPrice, setSellPrice] = useState('')
   const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed')
@@ -35,15 +39,38 @@ export function AddVisitButton({
   const [displayName, setDisplayName] = useState('')
   const router = useRouter()
 
+  useEffect(() => {
+    if (formOpen && staffList.length === 0) {
+      loadStaff()
+    }
+  }, [formOpen])
+
+  async function loadStaff() {
+    setStaffLoading(true)
+    try {
+      const staff = await getStaffForVisitLog()
+      setStaffList(staff as Staff[])
+    } catch (error) {
+      console.error('Failed to load staff:', error)
+      toast.error('スタッフ一覧の取得に失敗しました')
+    } finally {
+      setStaffLoading(false)
+    }
+  }
+
   async function handleAddWithPin(pin: string) {
     if (!visitDate) {
       return { error: '来店日を入力してください' }
     }
 
+    // staffId から staffName を取得
+    const selectedStaff = staffList.find(s => s.id === staffId)
+    const staffName = selectedStaff?.name || undefined
+
     const result = await addVisitRecord({
       customerId,
       visitDate,
-      staffName: staffName || undefined,
+      staffName,
       serviceMenu: serviceMenu || undefined,
       sellPrice: sellPrice ? parseInt(sellPrice, 10) : undefined,
       discountType,
@@ -56,7 +83,7 @@ export function AddVisitButton({
       toast.success(`${visitDate}の来店履歴を追加しました（売上: ${sellPrice ? `¥${parseInt(sellPrice, 10).toLocaleString()}` : '-'}）`)
       setFormOpen(false)
       setVisitDate('')
-      setStaffName('')
+      setStaffId('')
       setServiceMenu('')
       setSellPrice('')
       setDiscountAmount('')
@@ -102,14 +129,27 @@ export function AddVisitButton({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="staff-name">担当スタッフ（オプション）</Label>
-              <Input
-                id="staff-name"
-                type="text"
-                placeholder="山田太郎"
-                value={staffName}
-                onChange={(e) => setStaffName(e.target.value)}
-              />
+              <Label htmlFor="staff-id">担当スタッフ（オプション）</Label>
+              {staffLoading ? (
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  読み込み中...
+                </div>
+              ) : (
+                <select
+                  id="staff-id"
+                  className="w-full px-3 py-2 border border-input rounded-md text-sm"
+                  value={staffId}
+                  onChange={(e) => setStaffId(e.target.value)}
+                >
+                  <option value="">スタッフを選択...</option>
+                  {staffList.map(staff => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="space-y-2">
