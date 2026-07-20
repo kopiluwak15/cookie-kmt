@@ -334,6 +334,10 @@ export async function addVisitRecord(input: {
   visitDate: string
   staffName?: string
   serviceMenu?: string
+  sellPrice?: number
+  discountType?: 'fixed' | 'percent'
+  discountAmount?: number
+  displayName?: string
   pin: string
 }) {
   const staff = await getCachedStaffInfo()
@@ -352,9 +356,27 @@ export async function addVisitRecord(input: {
     return { error: 'PINが正しくありません' }
   }
 
+  // 金額計算（仮：税率10% = 税込で計算）
+  const sellPrice = input.sellPrice || 0
+  const discountAmount = input.discountAmount || 0
+  const discountType = input.discountType || 'fixed'
+
+  // 割引を適用（fixed=固定額、percent=パーセント）
+  let finalPrice = sellPrice
+  if (discountType === 'percent') {
+    finalPrice = Math.round(sellPrice * (1 - Math.abs(discountAmount) / 100))
+  } else {
+    finalPrice = sellPrice - Math.abs(discountAmount)
+  }
+  finalPrice = Math.max(0, finalPrice)
+
+  // 税額（税込価格から逆算：実際は売上計上時に8%で考えるケースもあるが、
+  // ここではinvoiceとして税込価格のみ記録）
+  const taxAmount = Math.round(finalPrice / 1.1 * 0.1)
+
   const supabase = await createClient()
 
-  // 来店履歴を insert
+  // 来店履歴を insert（金額・割引情報も含める）
   const { data: newVisit, error } = await supabase
     .from('visit_history')
     .insert([
@@ -363,6 +385,11 @@ export async function addVisitRecord(input: {
         visit_date: input.visitDate,
         staff_name: input.staffName || null,
         service_menu: input.serviceMenu || null,
+        sell_price: finalPrice,
+        tax_amount: taxAmount,
+        discount_type: discountType,
+        discount_amount: input.discountAmount || 0,
+        display_name: input.displayName || null,
         created_at: new Date().toISOString(),
         thank_you_sent: false,
       },
