@@ -59,25 +59,51 @@ export function AddVisitButton({
   }
 
   async function handleAddWithPin(pin: string) {
+    console.log('[DEBUG] handleAddWithPin called with pin:', pin)
+
     if (!visitDate) {
+      console.log('[DEBUG] visitDate is empty')
       return { error: '来店日を入力してください' }
     }
+
+    console.log('[DEBUG] visitDate:', visitDate)
+    console.log('[DEBUG] staffId:', staffId)
+    console.log('[DEBUG] sellPrice:', sellPrice)
 
     // staffId から staffName を取得
     const selectedStaff = staffList.find(s => s.id === staffId)
     const staffName = selectedStaff?.name || undefined
 
-    const result = await addVisitRecord({
+    console.log('[DEBUG] Calling addVisitRecord with:', {
       customerId,
       visitDate,
       staffName,
-      serviceMenu: serviceMenu || undefined,
-      sellPrice: sellPrice ? parseInt(sellPrice, 10) : undefined,
+      serviceMenu,
+      sellPrice,
       discountType,
-      discountAmount: discountAmount ? parseInt(discountAmount, 10) : undefined,
-      displayName: displayName || undefined,
-      pin,
+      discountAmount,
+      displayName,
     })
+
+    try {
+      const result = await addVisitRecord({
+        customerId,
+        visitDate,
+        staffName,
+        serviceMenu: serviceMenu || undefined,
+        sellPrice: sellPrice ? parseInt(sellPrice, 10) : undefined,
+        discountType,
+        discountAmount: discountAmount ? parseInt(discountAmount, 10) : undefined,
+        displayName: displayName || undefined,
+        pin,
+      })
+
+      console.log('[DEBUG] addVisitRecord result:', result)
+      return result
+    } catch (error) {
+      console.error('[ERROR] addVisitRecord threw:', error)
+      return { error: String(error) }
+    }
 
     if (result.success) {
       toast.success(`${visitDate}の来店履歴を追加しました（売上: ${sellPrice ? `¥${parseInt(sellPrice, 10).toLocaleString()}` : '-'}）`)
