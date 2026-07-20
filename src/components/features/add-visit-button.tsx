@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { PlusIcon, Loader2 } from 'lucide-react'
 import { addVisitRecord, getStaffForVisitLog } from '@/actions/visit-log'
@@ -29,91 +29,54 @@ export function AddVisitButton({
   const [formOpen, setFormOpen] = useState(false)
   const [pinOpen, setPinOpen] = useState(false)
   const [visitDate, setVisitDate] = useState('')
-  const [staffId, setStaffId] = useState('')
+  const [staffName, setStaffName] = useState('')
   const [staffList, setStaffList] = useState<Staff[]>([])
   const [staffLoading, setStaffLoading] = useState(false)
   const [serviceMenu, setServiceMenu] = useState('')
-  const [sellPrice, setSellPrice] = useState('')
-  const [discountType, setDiscountType] = useState<'fixed' | 'percent'>('fixed')
-  const [discountAmount, setDiscountAmount] = useState('')
-  const [displayName, setDisplayName] = useState('')
+  const [price, setPrice] = useState('')
+  const [notes, setNotes] = useState('')
   const router = useRouter()
+
+  const loadStaff = useCallback(async () => {
+    setStaffLoading(true)
+    try {
+      const staff = await getStaffForVisitLog()
+      setStaffList(staff as Staff[])
+    } catch {
+      toast.error('スタッフ一覧の取得に失敗しました')
+    } finally {
+      setStaffLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (formOpen && staffList.length === 0) {
       loadStaff()
     }
-  }, [formOpen])
+  }, [formOpen, staffList.length, loadStaff])
 
-  async function loadStaff() {
-    setStaffLoading(true)
-    try {
-      const staff = await getStaffForVisitLog()
-      setStaffList(staff as Staff[])
-    } catch (error) {
-      console.error('Failed to load staff:', error)
-      toast.error('スタッフ一覧の取得に失敗しました')
-    } finally {
-      setStaffLoading(false)
-    }
-  }
+  const canSubmit = !!visitDate && !!staffName && !!serviceMenu.trim()
 
   async function handleAddWithPin(pin: string) {
-    console.log('[DEBUG] handleAddWithPin called with pin:', pin)
-
-    if (!visitDate) {
-      console.log('[DEBUG] visitDate is empty')
-      return { error: '来店日を入力してください' }
-    }
-
-    console.log('[DEBUG] visitDate:', visitDate)
-    console.log('[DEBUG] staffId:', staffId)
-    console.log('[DEBUG] sellPrice:', sellPrice)
-
-    // staffId から staffName を取得
-    const selectedStaff = staffList.find(s => s.id === staffId)
-    const staffName = selectedStaff?.name || undefined
-
-    console.log('[DEBUG] Calling addVisitRecord with:', {
+    const result = await addVisitRecord({
       customerId,
       visitDate,
       staffName,
-      serviceMenu,
-      sellPrice,
-      discountType,
-      discountAmount,
-      displayName,
+      serviceMenu: serviceMenu.trim(),
+      price: price ? parseInt(price, 10) : undefined,
+      notes: notes || undefined,
+      pin,
     })
 
-    try {
-      const result = await addVisitRecord({
-        customerId,
-        visitDate,
-        staffName,
-        serviceMenu: serviceMenu || undefined,
-        sellPrice: sellPrice ? parseInt(sellPrice, 10) : undefined,
-        discountType,
-        discountAmount: discountAmount ? parseInt(discountAmount, 10) : undefined,
-        displayName: displayName || undefined,
-        pin,
-      })
-
-      console.log('[DEBUG] addVisitRecord result:', result)
-      return result
-    } catch (error) {
-      console.error('[ERROR] addVisitRecord threw:', error)
-      return { error: String(error) }
-    }
-
     if (result.success) {
-      toast.success(`${visitDate}の来店履歴を追加しました（売上: ${sellPrice ? `¥${parseInt(sellPrice, 10).toLocaleString()}` : '-'}）`)
-      setFormOpen(false)
+      toast.success(
+        `${visitDate}の来店履歴を追加しました${price ? `（¥${parseInt(price, 10).toLocaleString()}）` : ''}`
+      )
       setVisitDate('')
-      setStaffId('')
+      setStaffName('')
       setServiceMenu('')
-      setSellPrice('')
-      setDiscountAmount('')
-      setDisplayName('')
+      setPrice('')
+      setNotes('')
       router.refresh()
       return { success: true }
     }
@@ -134,11 +97,11 @@ export function AddVisitButton({
 
       {/* フォーム入力ダイアログ */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>来店履歴を追加</DialogTitle>
             <DialogDescription>
-              {customerName}の来店履歴を後から登録します
+              {customerName}さんの来店履歴を後から登録します（記録漏れの補完用）
             </DialogDescription>
           </DialogHeader>
 
@@ -155,7 +118,7 @@ export function AddVisitButton({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="staff-id">担当スタッフ（オプション）</Label>
+              <Label htmlFor="staff-name">担当スタッフ *</Label>
               {staffLoading ? (
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -163,14 +126,14 @@ export function AddVisitButton({
                 </div>
               ) : (
                 <select
-                  id="staff-id"
-                  className="w-full px-3 py-2 border border-input rounded-md text-sm"
-                  value={staffId}
-                  onChange={(e) => setStaffId(e.target.value)}
+                  id="staff-name"
+                  className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
+                  value={staffName}
+                  onChange={(e) => setStaffName(e.target.value)}
                 >
                   <option value="">スタッフを選択...</option>
-                  {staffList.map(staff => (
-                    <option key={staff.id} value={staff.id}>
+                  {staffList.map((staff) => (
+                    <option key={staff.id} value={staff.name}>
                       {staff.name}
                     </option>
                   ))}
@@ -179,64 +142,42 @@ export function AddVisitButton({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="service-menu">施術メニュー（オプション）</Label>
+              <Label htmlFor="service-menu">施術メニュー *</Label>
               <Input
                 id="service-menu"
                 type="text"
-                placeholder="縮毛矯正"
+                placeholder="縮毛矯正 / カット など"
                 value={serviceMenu}
                 onChange={(e) => setServiceMenu(e.target.value)}
+                required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="display-name">請求名（オプション）</Label>
+              <Label htmlFor="price">施術料金（円・税込 / 任意）</Label>
               <Input
-                id="display-name"
-                type="text"
-                placeholder="カット + カラー"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sell-price">売価（円、税込み）</Label>
-              <Input
-                id="sell-price"
+                id="price"
                 type="number"
-                placeholder="5500"
-                value={sellPrice}
-                onChange={(e) => setSellPrice(e.target.value)}
+                inputMode="numeric"
+                placeholder="16500"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
                 min="0"
               />
+              <p className="text-xs text-muted-foreground">
+                入力すると売上分析・ダッシュボードに反映されます
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <Label htmlFor="discount-type">割引形式</Label>
-                <select
-                  id="discount-type"
-                  className="w-full px-3 py-2 border border-input rounded-md text-sm"
-                  value={discountType}
-                  onChange={(e) => setDiscountType(e.target.value as 'fixed' | 'percent')}
-                >
-                  <option value="fixed">固定額（¥）</option>
-                  <option value="percent">パーセント（%）</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="discount-amount">割引額</Label>
-                <Input
-                  id="discount-amount"
-                  type="number"
-                  placeholder={discountType === 'percent' ? '10' : '500'}
-                  value={discountAmount}
-                  onChange={(e) => setDiscountAmount(e.target.value)}
-                  min="0"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="visit-notes">メモ（任意）</Label>
+              <Input
+                id="visit-notes"
+                type="text"
+                placeholder="記録漏れのため後日追加 など"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
             </div>
           </div>
 
@@ -245,7 +186,7 @@ export function AddVisitButton({
               キャンセル
             </Button>
             <Button
-              disabled={!visitDate}
+              disabled={!canSubmit}
               onClick={() => {
                 setFormOpen(false)
                 setPinOpen(true)
@@ -265,7 +206,7 @@ export function AddVisitButton({
         description={
           <>
             <span className="font-medium text-foreground">
-              {visitDate}（{customerName}）
+              {visitDate}（{customerName}さん / 担当: {staffName}）
             </span>
             <br />
             <span className="text-sm text-muted-foreground">
@@ -275,6 +216,7 @@ export function AddVisitButton({
         }
         onConfirm={handleAddWithPin}
         confirmLabel="追加する"
+        confirmClassName="bg-primary hover:bg-primary/90 text-primary-foreground"
       />
     </>
   )
