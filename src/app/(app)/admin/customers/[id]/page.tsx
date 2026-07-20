@@ -248,6 +248,7 @@ export default async function CustomerDetailPage({
       </Card>
 
       <CustomerDetailTabs
+        customerId={customer.id}
         visits={visits || []}
         caseRecords={caseRecords}
         lineHistory={lineHistory || []}

@@ -388,6 +388,7 @@ export default function KarteQrPage() {
           </Card>
 
           <CustomerDetailTabs
+            customerId={c.id}
             visits={karteData.visits}
             caseRecords={karteData.caseRecords}
             lineHistory={karteData.lineHistory}
