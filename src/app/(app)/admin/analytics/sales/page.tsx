@@ -288,13 +288,16 @@ function getDemoVisits(): VisitRecord[] {
 // データ取得
 // ============================================
 
-async function fetchSalesData(staffFilter?: string) {
+async function fetchSalesData(staffFilter: string | undefined, targetMonth: string) {
   const supabase = await createClient()
   const now = new Date()
 
-  // 過去12ヶ月分のデータを取得
+  // 直近12ヶ月の開始月。選択月がそれより古ければ選択月まで遡って取得する。
   const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1)
-  const startDate = `${twelveMonthsAgo.getFullYear()}-${String(twelveMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`
+  const [ty, tm] = targetMonth.split('-').map((n) => parseInt(n, 10))
+  const selectedStart = new Date(ty, tm - 1, 1)
+  const startObj = selectedStart < twelveMonthsAgo ? selectedStart : twelveMonthsAgo
+  const startDate = `${startObj.getFullYear()}-${String(startObj.getMonth() + 1).padStart(2, '0')}-01`
 
   let query = supabase
     .from('visit_history')
@@ -321,10 +324,22 @@ async function fetchSalesData(staffFilter?: string) {
   // コンセプトメニュー名集合を取得
   const conceptNames = await fetchConceptMenuNames(supabase)
 
+  // 年セレクタ用に、最も古い来店年を取得
+  const { data: earliest } = await supabase
+    .from('visit_history')
+    .select('visit_date')
+    .order('visit_date', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  const earliestYear = earliest?.visit_date
+    ? parseInt(earliest.visit_date.slice(0, 4), 10)
+    : now.getFullYear()
+
   return {
     visits: (visits || []) as VisitRecord[],
     staffList,
     conceptNames,
+    earliestYear,
   }
 }
 
@@ -348,34 +363,54 @@ function formatDate(dateStr: string): string {
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ staff?: string }>
+  searchParams: Promise<{ staff?: string; year?: string; month?: string }>
 }) {
-  const { staff: staffFilter } = await searchParams
+  const { staff: staffFilter, year: yearParam, month: monthParam } = await searchParams
+
+  // 選択中の年月（未指定なら今月）
+  const now = new Date()
+  const selectedYear = yearParam ? parseInt(yearParam, 10) : now.getFullYear()
+  const selectedMonth = monthParam ? parseInt(monthParam, 10) : now.getMonth() + 1
+  const targetMonth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`
+  const periodLabel = `${selectedYear}年${selectedMonth}月`
+  const isCurrentMonth =
+    selectedYear === now.getFullYear() && selectedMonth === now.getMonth() + 1
 
   let visits: VisitRecord[]
   let staffList: string[]
   let conceptNames: Set<string>
+  let earliestYear: number
 
   if (!isSupabaseConfigured) {
     const allVisits = getDemoVisits()
     staffList = ['山田', '佐々木']
     conceptNames = DEMO_CONCEPT_NAMES
+    // デモデータに含まれる最古の年
+    earliestYear = allVisits.reduce(
+      (min, v) => Math.min(min, parseInt(v.visit_date.slice(0, 4), 10)),
+      now.getFullYear()
+    )
 
     // スタッフフィルター適用
     visits = staffFilter && staffFilter !== 'all'
       ? allVisits.filter((v) => v.staff_name === staffFilter)
       : allVisits
   } else {
-    const data = await fetchSalesData(staffFilter)
+    const data = await fetchSalesData(staffFilter, targetMonth)
     visits = data.visits
     staffList = data.staffList
     conceptNames = data.conceptNames
+    earliestYear = data.earliestYear
   }
 
-  // 今月のデータを抽出
-  const now = new Date()
-  const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const currentMonthVisits = visits.filter((v) => v.visit_date.startsWith(thisMonth))
+  // 年セレクタの選択肢（最古の来店年 〜 今年。選択中の年も必ず含める）
+  const maxYear = Math.max(now.getFullYear(), selectedYear)
+  const minYear = Math.min(earliestYear, selectedYear)
+  const years: number[] = []
+  for (let y = maxYear; y >= minYear; y--) years.push(y)
+
+  // 選択月のデータを抽出
+  const currentMonthVisits = visits.filter((v) => v.visit_date.startsWith(targetMonth))
 
   // 集計
   const staffSummary = aggregateByStaff(currentMonthVisits, conceptNames)
@@ -405,12 +440,23 @@ export default async function SalesPage({
     : null
 
   const filterLabel = staffFilter && staffFilter !== 'all' ? staffFilter : 'お店全体'
+  // KPI等の見出しに使う月ラベル（今月なら「今月」、過去月なら「2026年9月」）
+  const monthLabel = isCurrentMonth ? '今月' : periodLabel
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">売上実績</h2>
-        <SalesFilter staffList={staffList} currentStaff={staffFilter || 'all'} />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">売上実績</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{periodLabel}の実績を表示中</p>
+        </div>
+        <SalesFilter
+          staffList={staffList}
+          currentStaff={staffFilter || 'all'}
+          years={years}
+          currentYear={selectedYear}
+          currentMonth={selectedMonth}
+        />
       </div>
 
       {!isSupabaseConfigured && (
@@ -423,14 +469,14 @@ export default async function SalesPage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">今月の売上</p>
+            <p className="text-sm text-muted-foreground">{monthLabel}の売上</p>
             <p className="text-2xl font-bold mt-1">{formatCurrency(monthRevenue)}</p>
             <p className="text-xs text-muted-foreground mt-1">{filterLabel}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">今月の客数</p>
+            <p className="text-sm text-muted-foreground">{monthLabel}の客数</p>
             <p className="text-2xl font-bold mt-1">
               {monthCount}
               <span className="text-sm font-normal text-muted-foreground ml-1">人</span>
@@ -457,7 +503,7 @@ export default async function SalesPage({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="border-purple-200 bg-purple-50/40">
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">コンセプト売上（今月）</p>
+            <p className="text-sm text-muted-foreground">コンセプト売上（{monthLabel}）</p>
             <p className="text-2xl font-bold mt-1 text-purple-700">
               {formatCurrency(conceptSplit.conceptRevenue)}
             </p>
@@ -468,7 +514,7 @@ export default async function SalesPage({
         </Card>
         <Card className="border-sky-200 bg-sky-50/40">
           <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">レギュラー売上（今月）</p>
+            <p className="text-sm text-muted-foreground">レギュラー売上（{monthLabel}）</p>
             <p className="text-2xl font-bold mt-1 text-sky-700">
               {formatCurrency(conceptSplit.regularRevenue)}
             </p>
@@ -502,7 +548,7 @@ export default async function SalesPage({
         <CardContent className="pt-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">今月の平均60分基準タイム</p>
+              <p className="text-sm text-muted-foreground">{monthLabel}の平均60分基準タイム</p>
               <p className="text-3xl font-bold mt-1 text-amber-700">
                 {monthAvg30min !== null ? `${monthAvg30min}分` : '-'}
               </p>
@@ -518,7 +564,7 @@ export default async function SalesPage({
       {(!staffFilter || staffFilter === 'all') && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">スタッフ別実績（今月）</CardTitle>
+            <CardTitle className="text-lg">スタッフ別実績（{monthLabel}）</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -600,7 +646,7 @@ export default async function SalesPage({
       {/* 日別実績 */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">日別実績（今月）</CardTitle>
+          <CardTitle className="text-lg">日別実績（{monthLabel}）</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
